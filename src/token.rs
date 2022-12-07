@@ -11,6 +11,9 @@ pub enum TokenType {
   LeftParanthesis,
   RightParanthesis,
 
+  // used for scope
+  Indentation,
+
   // custom token that does not match to any rule in the parser,
   // used for early returns
   EOF,

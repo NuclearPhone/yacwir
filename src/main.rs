@@ -4,6 +4,8 @@
 use context::CompilerContextBuilder;
 use parser::Parser;
 
+use crate::{emitter::Emitter, ir::IrEmitter};
+
 mod context;
 mod emitter;
 mod ir;
@@ -29,11 +31,15 @@ fn main() {
   };
 
   let ctx = CompilerContextBuilder::new()
-    .filedata(filedata)
+    .filedata(filedata.trim().into())
     .verbose(true)
     .take();
 
-  let ast = Parser::new(&ctx).unwrap().parse();
+  let ast = Parser::new(&ctx).unwrap().parse().unwrap();
 
-  println!("{:?}", ast);
+  println!("{:?}", ast.nodes);
+
+  let ir_out = IrEmitter::new(&ctx, &ast).emit();
+
+  println!("{:?}", ir_out);
 }

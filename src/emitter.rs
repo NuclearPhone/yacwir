@@ -1,6 +1,9 @@
 use crate::{context::CompilerContext, node::Node};
 
 pub trait Emitter<'a> {
-  fn new(ctx: &'a CompilerContext, ast: &'a Node) -> Self;
-  fn emit(self) -> String;
+  type Input;
+  type Output;
+
+  fn new(ctx: &'a CompilerContext, ast: &'a Self::Input) -> Self;
+  fn emit(self) -> Self::Output;
 }

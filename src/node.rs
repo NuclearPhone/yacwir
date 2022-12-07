@@ -1,3 +1,5 @@
+pub type NodeIdx = usize;
+
 #[derive(Debug)]
 pub enum Node {
   Add(Binary),
@@ -9,10 +11,21 @@ pub enum Node {
 
   // index into the token array
   Identifier(usize),
+
+  FunctionDef(FunctionDef),
+  Block(Vec<NodeIdx>),
 }
 
 #[derive(Debug)]
 pub struct Binary {
-  pub left: Box<Node>,
-  pub right: Box<Node>,
+  pub left: NodeIdx,
+  pub right: NodeIdx,
+}
+
+#[derive(Debug)]
+pub struct FunctionDef {
+  pub name: String,
+
+  // index to a block of nodes
+  pub exec: NodeIdx,
 }
