@@ -4,15 +4,17 @@
 use context::CompilerContextBuilder;
 use parser::Parser;
 
-use crate::{emitter::Emitter, ir::IrEmitter};
+use crate::{emitter::Emitter, ir::IrEmitter, optimizers::optimize};
 
 mod context;
 mod emitter;
 mod ir;
 mod lexer;
 mod node;
+mod optimizers;
 mod parser;
 mod token;
+mod typecheck;
 // mod x86_emitter;
 
 fn main() {
@@ -39,7 +41,9 @@ fn main() {
 
   println!("{:?}", ast.nodes);
 
-  let ir_out = IrEmitter::new(&ctx, &ast).emit();
+  let ir_out = IrEmitter::new(&ctx, &ast).emit().unwrap();
+  let ir_out = optimize(&ctx, ir_out);
+  println!("{}", ir_out.funcs[0].instrs);
 
-  println!("{:?}", ir_out);
+  // let optimized_ir = optimize(&ctx, ir_out);
 }
