@@ -4,7 +4,12 @@
 use context::CompilerContextBuilder;
 use parser::Parser;
 
-use crate::{emitter::Emitter, ir::IrEmitter, optimizers::optimize};
+use crate::{
+  diagnostic::{Diagnostic, DiagnosticLevel},
+  emitter::Emitter,
+  ir::IrEmitter,
+  optimizers::optimize,
+};
 
 mod context;
 mod diagnostic;
@@ -46,9 +51,15 @@ fn main() {
   let ir_out = optimize(&ctx, ir_out);
   println!("{}", ir_out.funcs[0].instrs);
 
+  ctx.push_diagnostic(Diagnostic {
+    tokidx: 3,
+    info: "test".to_owned(),
+    level: DiagnosticLevel::Info,
+  });
+
   // print any diagnostics
   for diagnostic in ctx.get_diagnostics().iter() {
-    println!("{}", diagnostic);
+    println!("{}", diagnostic.display(&ctx, &ast.toks));
   }
 
   // let optimized_ir = optimize(&ctx, ir_out);

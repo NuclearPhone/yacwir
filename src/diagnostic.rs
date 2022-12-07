@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use crate::{context::CompilerContext, token::Token};
+
 pub enum DiagnosticLevel {
   Info,
   Warning,
@@ -18,6 +20,28 @@ pub struct Diagnostic {
   pub info: String,
 }
 
+impl Diagnostic {
+  // convert the diagnostic to a printable string
+  // requires context and tokens for lookup purposes
+  pub fn display(&self, ctx: &CompilerContext, toks: &Vec<Token>) -> String {
+    let str = ctx.get_input_str();
+
+    // do some weird pointer arithmetic to get the location of the token in the main string
+    let startpos = toks[self.tokidx].slice.as_ptr() as usize - str.as_ptr() as usize;
+
+    // find the line position in input
+    let lines = str[..startpos + 1].lines();
+    let line = lines.clone().count();
+    let line_data = lines.last().unwrap();
+
+    let out = format!(
+      "{}:    {}\n{}: | {}",
+      line, line_data, self.level, self.info
+    );
+    out
+  }
+}
+
 impl Display for DiagnosticLevel {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.write_str(match self {
@@ -25,13 +49,5 @@ impl Display for DiagnosticLevel {
       Self::Warning => "Warning",
       Self::Error => "Error",
     })
-  }
-}
-
-impl Display for Diagnostic {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    // TODO: implement showing where the error is
-    let out = format!("{}: {}", self.level, self.info);
-    f.write_str(out.as_str())
   }
 }
