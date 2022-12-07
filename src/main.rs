@@ -7,6 +7,7 @@ use parser::Parser;
 use crate::{emitter::Emitter, ir::IrEmitter, optimizers::optimize};
 
 mod context;
+mod diagnostic;
 mod emitter;
 mod ir;
 mod lexer;
@@ -44,6 +45,11 @@ fn main() {
   let ir_out = IrEmitter::new(&ctx, &ast).emit().unwrap();
   let ir_out = optimize(&ctx, ir_out);
   println!("{}", ir_out.funcs[0].instrs);
+
+  // print any diagnostics
+  for diagnostic in ctx.get_diagnostics().iter() {
+    println!("{}", diagnostic);
+  }
 
   // let optimized_ir = optimize(&ctx, ir_out);
 }

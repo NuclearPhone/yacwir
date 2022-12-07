@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use crate::{
   context::CompilerContext,
+  diagnostic::{Diagnostic, DiagnosticLevel},
   emitter::Emitter,
   node::{Binary, FunctionDef, Node, NodeIdx},
   parser::Ast,
