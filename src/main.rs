@@ -7,21 +7,23 @@ use parser::Parser;
 use crate::{
   diagnostic::{Diagnostic, DiagnosticLevel},
   emitter::Emitter,
+  emitters::{ir2c_emitter, x86_emitter::X86Emitter},
   ir::IrEmitter,
   optimizers::optimize,
+  sema::TypeChecker,
 };
 
 mod context;
 mod diagnostic;
 mod emitter;
+mod emitters;
 mod ir;
 mod lexer;
 mod node;
 mod optimizers;
 mod parser;
+mod sema;
 mod token;
-mod typecheck;
-// mod x86_emitter;
 
 fn main() {
   let mut args = std::env::args();
@@ -47,20 +49,17 @@ fn main() {
 
   println!("{:?}", ast.nodes);
 
-  let ir_out = IrEmitter::new(&ctx, &ast).emit().unwrap();
-  let ir_out = optimize(&ctx, ir_out);
-  println!("{}", ir_out.funcs[0].instrs);
-
-  ctx.push_diagnostic(Diagnostic {
-    tokidx: 3,
-    info: "test".to_owned(),
-    level: DiagnosticLevel::Info,
-  });
+  let ir_out = IrEmitter::emit(&ctx, &ast).unwrap();
+  let ir = TypeChecker::typecheck(&ctx, ir_out).unwrap();
+  // let ir = optimize(&ctx, ir);
+  println!("{}", ir.funcs[0]);
 
   // print any diagnostics
   for diagnostic in ctx.get_diagnostics().iter() {
     println!("{}", diagnostic.display(&ctx, &ast.toks));
   }
 
-  // let optimized_ir = optimize(&ctx, ir_out);
+  // let asm = X86Emitter::emit(&ctx, &ir_out).unwrap();
+  let asm = ir2c_emitter::Emitter::emit(&ctx, &ir).unwrap();
+  println!("\n==== ASM OUTPUT ====\n{}", asm);
 }

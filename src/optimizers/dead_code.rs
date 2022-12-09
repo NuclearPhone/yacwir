@@ -2,7 +2,7 @@ use crate::{context::CompilerContext, ir::IrUnit};
 
 use super::OptimizerPass;
 
-// performs dead code analysis on an entire unit
+// performs dead code analysis on an entire unit,
 pub struct Pass<'a> {
   ctx: &'a CompilerContext,
   unit: IrUnit,

@@ -62,34 +62,58 @@ impl<'a> Lexer<'a> {
 
       '+' => {
         self.idx += 1;
-        return Ok(Token {
+        Ok(Token {
           ty: TokenType::Plus,
           slice: &self.input[self.idx - 1..self.idx],
-        });
+        })
       }
 
       '-' => {
         self.idx += 1;
-        return Ok(Token {
+        Ok(Token {
           ty: TokenType::Minus,
           slice: &self.input[self.idx - 1..self.idx],
-        });
+        })
       }
 
       '*' => {
         self.idx += 1;
-        return Ok(Token {
+        Ok(Token {
           ty: TokenType::Asterisk,
           slice: &self.input[self.idx - 1..self.idx],
-        });
+        })
       }
 
       '/' => {
         self.idx += 1;
-        return Ok(Token {
+        Ok(Token {
           ty: TokenType::Solidus,
           slice: &self.input[self.idx - 1..self.idx],
-        });
+        })
+      }
+
+      ':' => {
+        self.idx += 1;
+        Ok(Token {
+          ty: TokenType::Colon,
+          slice: &self.input[self.idx - 1..self.idx],
+        })
+      }
+
+      '(' => {
+        self.idx += 1;
+        Ok(Token {
+          ty: TokenType::LeftParanthesis,
+          slice: &self.input[self.idx - 1..self.idx],
+        })
+      }
+
+      ')' => {
+        self.idx += 1;
+        Ok(Token {
+          ty: TokenType::RightParanthesis,
+          slice: &self.input[self.idx - 1..self.idx],
+        })
       }
 
       x if x.is_digit(10) => {
@@ -104,13 +128,40 @@ impl<'a> Lexer<'a> {
           self.idx += 1;
         }
 
-        return Ok(Token {
+        Ok(Token {
           ty: TokenType::Number,
           slice: &self.input[self.idx - len..self.idx],
-        });
+        })
       }
 
-      _ => return Err("fallthrough in lexer function".into()),
+      x if x.is_alphabetic() => {
+        let mut len = 0;
+        while let Some(ch) = self._current_char() {
+          if !ch.is_alphanumeric() && ch != '_' {
+            break;
+          }
+          len += 1;
+          self.idx += 1;
+        }
+
+        let slice = &self.input[self.idx - len..self.idx];
+
+        Ok(Token {
+          slice,
+          ty: match slice {
+            "return" => TokenType::Return,
+
+            "defn" => TokenType::Defn,
+
+            _ => TokenType::Identifier,
+          },
+        })
+      }
+
+      _ => Err(format!(
+        "Fallthrough in lexer function: <{}>",
+        self._current_char().unwrap()
+      )),
     }
   }
 

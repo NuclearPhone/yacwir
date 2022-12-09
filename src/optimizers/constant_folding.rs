@@ -37,7 +37,8 @@ impl<'a> Pass<'a> {
           match (&lval.val, &rval.val) {
             (InstructionValue::ConstInteger(li), InstructionValue::ConstInteger(ri)) => to_block
               .push(Instruction {
-                id: instr.id,
+                tok: instr.tok,
+                ty: instr.ty,
                 val: InstructionValue::ConstInteger(match bin {
                   InstructionValue::Add(..) => li + ri,
                   InstructionValue::Subtract(..) => li - ri,
@@ -49,7 +50,8 @@ impl<'a> Pass<'a> {
 
             (InstructionValue::ConstFloat(li), InstructionValue::ConstFloat(ri)) => {
               to_block.push(Instruction {
-                id: instr.id,
+                tok: instr.tok,
+                ty: instr.ty,
                 val: InstructionValue::ConstFloat(match bin {
                   InstructionValue::Add(..) => li + ri,
                   InstructionValue::Subtract(..) => li - ri,

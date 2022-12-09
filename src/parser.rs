@@ -1,13 +1,19 @@
+use std::fmt::Display;
+
 use crate::{
   context::CompilerContext,
   lexer::Lexer,
-  node::{Binary, Node, NodeIdx, FunctionDef},
-  token::{Token, TokenType},
+  node::{Binary, Node, NodeIdx, FunctionDef, ParameterDeclList},
+  token::{Token, TokenType, TokIdx},
 };
 
 pub struct Ast<'a> {
   pub toks: Vec<Token<'a>>,
   pub nodes: Vec<Node>,
+  
+  // list of indices into self.nodes
+  // guaranteed to be FunctionDef nodes
+  pub funcs: Vec<NodeIdx>,
 }
 
 pub struct Parser<'a> {
@@ -27,6 +33,19 @@ impl<'a> Parser<'a> {
       toks: Lexer::new(ctx).lex()?,
       tokidx: 0,
     })
+  }
+
+  fn expect(&mut self, expected_type: TokenType) -> Result<TokIdx, String> {
+    let Some(tok) = self.current_tok() else {
+      return Err("Ran out of characters to expect".to_string())
+    };
+
+    if tok.ty == expected_type {
+      self.tokidx += 1;
+      Ok(self.tokidx)  
+    } else {
+      Err(format!("Expected token {}, but found {}", expected_type, tok.ty))
+    }
   }
 
   fn push_node(&mut self, node: Node) -> usize {
@@ -61,7 +80,7 @@ impl<'a> Parser<'a> {
         )
       }
 
-      _ => Err("unknown symbol in parse_factor".into()),
+      _ => Err(format!("unknown symbol in parse_factor <{:?}>", self.current_tok())),
     }
   }
 
@@ -112,6 +131,27 @@ impl<'a> Parser<'a> {
 
     Ok(left)
   }
+  
+  fn parse_return(&mut self) -> Result<NodeIdx, String> {
+    let Some(Token{ty: TokenType::Return, ..}) = self.current_tok() else {
+      return Err("Expected a return token while parsing return.".to_owned()); 
+    };
+  
+    self.tokidx += 1;
+  
+    let ret_val = self.parse_expr()?;
+    Ok(self.push_node(Node::Return(ret_val)))
+  }
+  
+  fn parse_expr_statement(&mut self) -> Result<NodeIdx, String> {
+    if let Some(Token{ty: TokenType::Defn, ..}) = self.current_tok() {
+      self.parse_function()
+    } else if let Some(Token{ty: TokenType::Return, ..}) = self.current_tok() {
+       self.parse_return()
+    } else {
+      self.parse_expr()
+    }
+  }
 
   fn parse_block(&mut self) -> Result<NodeIdx, String> {
     // get indentation
@@ -125,7 +165,7 @@ impl<'a> Parser<'a> {
     let mut toks = vec![];
     
     'l: loop {      
-      toks.push(self.parse_expr()?);
+      toks.push(self.parse_expr_statement()?);
       
       let new_ind: usize = match self.current_tok() {
         Some(Token{ty: TokenType::Indentation, slice}) => slice.len(),
@@ -149,17 +189,73 @@ impl<'a> Parser<'a> {
     Ok(self.push_node(Node::Block(toks)))
   }
 
+  fn parse_parameter_declaration(&mut self) -> Result<ParameterDeclList, String> {
+    let Some(Token {ty: TokenType::LeftParanthesis, ..}) = self.current_tok() else {
+      return Err(
+        "Expected a left paranthesis (start of parameter delcarations) while parsing a function declaration"
+          .to_string()
+        
+      );
+    };
+    self.tokidx += 1;
+
+    let Some(Token {ty: TokenType::RightParanthesis, ..}) = self.current_tok() else {
+      return Err("
+          Expected a right paranthesis while parsing the end of a parameter declaration
+        ".to_string());
+    };
+    self.tokidx += 1;
+
+    // TODO: implement function parameters
+
+    Ok(vec![])
+  }
+
+  fn parse_function(&mut self) -> Result<NodeIdx, String> {
+    _ = self.expect(TokenType::Defn)?;
+    let name = self.expect(TokenType::Identifier)?;
+    let params = self.parse_parameter_declaration()?;
+    _ = self.expect(TokenType::Colon)?;
+
+    let exec = self.parse_block()?;
+
+    Ok(
+      self.push_node(
+        Node::FunctionDef(FunctionDef {
+          name,
+          exec,
+        })
+      )
+    )
+  }
+
   pub fn parse(mut self) -> Result<Ast<'a>, String> {
     // reserve some space for the main function
     _ = self.push_node(Node::Add(Binary { left: 0, right: 0 }));
 
+    let mut funcs = vec![0];
     let main_block = self.parse_block()?;
     
-    self.nodes[0] = Node::FunctionDef(FunctionDef {name: "main".into(), exec: main_block});
+    self.nodes[0] = Node::FunctionDef(FunctionDef {name: 0, exec: main_block});
     
     Ok(Ast {
       toks: self.toks,
       nodes: self.nodes,
+      funcs 
     })
   }
 }
+
+// impl<'a> Ast<'a> {
+//   fn inner_display(&self, indentation: usize, out: &mut String) {
+//     match self {
+      
+//     }
+//   }
+// }
+
+// impl<'a> Display for Ast<'a> {
+//   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//     let out = m
+//   }
+// }
