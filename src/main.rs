@@ -5,14 +5,15 @@ use context::CompilerContextBuilder;
 use parser::Parser;
 
 use crate::{
+  ast2ir::IrEmitter,
   diagnostic::{Diagnostic, DiagnosticLevel},
   emitter::Emitter,
   emitters::{ir2c_emitter, x86_emitter::X86Emitter},
-  ir::IrEmitter,
   optimizers::optimize,
   sema::TypeChecker,
 };
 
+mod ast2ir;
 mod context;
 mod diagnostic;
 mod emitter;
@@ -57,9 +58,9 @@ fn main() {
 
   println!("{:?}", ast.nodes);
 
-  let ir_out = IrEmitter::emit(&ast, &ast).unwrap();
+  let ir_out = IrEmitter::emit(&ast).unwrap();
   let ir = TypeChecker::typecheck(&ctx, ir_out).unwrap();
-  // let ir = optimize(&ctx, ir);
+  let ir = optimize(&ctx, ir);
   println!("{}", ir.funcs[0]);
 
   // print any diagnostics

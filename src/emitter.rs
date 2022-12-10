@@ -1,8 +1,8 @@
 use crate::{context::CompilerContext, node::Node, parser::Ast};
 
-pub trait Emitter<'a, 'b> {
+pub trait Emitter<'a> {
   type Input;
   type Output;
 
-  fn emit(ast: &'a Ast<'a>, input: &'b Self::Input) -> Self::Output;
+  fn emit(ast: &'a Ast, input: &'a Self::Input) -> Self::Output;
 }

@@ -1,6 +1,6 @@
 use crate::{
   context::CompilerContext,
-  token::{Token, TokenType},
+  token::{Span, Token, TokenType},
 };
 
 pub struct Lexer<'a> {
@@ -31,7 +31,7 @@ impl<'a> Lexer<'a> {
   }
 
   // assume the \n has already been lexed
-  fn _lex_indent<'b>(&'b mut self) -> Result<Token<'a>, String> {
+  fn _lex_indent<'b>(&'b mut self) -> Result<Token, String> {
     if self.input[self.idx..].trim_start().starts_with('#') {
       self._skip_whitespace();
       let mut len: usize = 0;
@@ -45,7 +45,10 @@ impl<'a> Lexer<'a> {
       }
       Ok(Token {
         ty: TokenType::Comment,
-        slice: &self.input[self.idx - len..self.idx],
+        span: Span {
+          start: self.idx - len,
+          end: self.idx,
+        },
       })
     } else {
       self.idx += 1;
@@ -67,12 +70,15 @@ impl<'a> Lexer<'a> {
 
       Ok(Token {
         ty: TokenType::Indentation,
-        slice: &self.input[self.idx - ind..self.idx],
+        span: Span {
+          start: self.idx - ind,
+          end: self.idx,
+        },
       })
     }
   }
 
-  fn _lex<'b>(&'b mut self) -> Result<Token<'a>, String> {
+  fn _lex<'b>(&'b mut self) -> Result<Token, String> {
     self._skip_whitespace();
 
     match self
@@ -88,7 +94,10 @@ impl<'a> Lexer<'a> {
         self.idx += 1;
         Ok(Token {
           ty: TokenType::Plus,
-          slice: &self.input[self.idx - 1..self.idx],
+          span: Span {
+            start: self.idx - 1,
+            end: self.idx,
+          },
         })
       }
 
@@ -96,7 +105,10 @@ impl<'a> Lexer<'a> {
         self.idx += 1;
         Ok(Token {
           ty: TokenType::Minus,
-          slice: &self.input[self.idx - 1..self.idx],
+          span: Span {
+            start: self.idx - 1,
+            end: self.idx,
+          },
         })
       }
 
@@ -104,7 +116,10 @@ impl<'a> Lexer<'a> {
         self.idx += 1;
         Ok(Token {
           ty: TokenType::Asterisk,
-          slice: &self.input[self.idx - 1..self.idx],
+          span: Span {
+            start: self.idx - 1,
+            end: self.idx,
+          },
         })
       }
 
@@ -112,7 +127,10 @@ impl<'a> Lexer<'a> {
         self.idx += 1;
         Ok(Token {
           ty: TokenType::Solidus,
-          slice: &self.input[self.idx - 1..self.idx],
+          span: Span {
+            start: self.idx - 1,
+            end: self.idx,
+          },
         })
       }
 
@@ -120,7 +138,10 @@ impl<'a> Lexer<'a> {
         self.idx += 1;
         Ok(Token {
           ty: TokenType::Colon,
-          slice: &self.input[self.idx - 1..self.idx],
+          span: Span {
+            start: self.idx - 1,
+            end: self.idx,
+          },
         })
       }
 
@@ -128,7 +149,10 @@ impl<'a> Lexer<'a> {
         self.idx += 1;
         Ok(Token {
           ty: TokenType::LeftParanthesis,
-          slice: &self.input[self.idx - 1..self.idx],
+          span: Span {
+            start: self.idx - 1,
+            end: self.idx,
+          },
         })
       }
 
@@ -136,7 +160,10 @@ impl<'a> Lexer<'a> {
         self.idx += 1;
         Ok(Token {
           ty: TokenType::RightParanthesis,
-          slice: &self.input[self.idx - 1..self.idx],
+          span: Span {
+            start: self.idx - 1,
+            end: self.idx,
+          },
         })
       }
 
@@ -154,7 +181,10 @@ impl<'a> Lexer<'a> {
 
         Ok(Token {
           ty: TokenType::Number,
-          slice: &self.input[self.idx - len..self.idx],
+          span: Span {
+            start: self.idx - len,
+            end: self.idx,
+          },
         })
       }
 
@@ -168,10 +198,14 @@ impl<'a> Lexer<'a> {
           self.idx += 1;
         }
 
-        let slice = &self.input[self.idx - len..self.idx];
+        let span = Span {
+          start: self.idx - len,
+          end: self.idx,
+        };
+
+        let slice = &self.input[span.start..span.end];
 
         Ok(Token {
-          slice,
           ty: match slice {
             "return" => TokenType::Return,
 
@@ -179,6 +213,8 @@ impl<'a> Lexer<'a> {
 
             _ => TokenType::Identifier,
           },
+
+          span,
         })
       }
 
@@ -189,7 +225,7 @@ impl<'a> Lexer<'a> {
     }
   }
 
-  pub fn lex(mut self) -> Result<Vec<Token<'a>>, String> {
+  pub fn lex(mut self) -> Result<Vec<Token>, String> {
     let mut toks = vec![];
 
     // lex a single indentation
@@ -201,7 +237,10 @@ impl<'a> Lexer<'a> {
 
     toks.push(Token {
       ty: TokenType::EOF,
-      slice: &self.input[self.input.len()..self.input.len()],
+      span: Span {
+        start: self.input.len(),
+        end: self.input.len(),
+      },
     });
 
     Ok(toks)

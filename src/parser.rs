@@ -7,8 +7,8 @@ use crate::{
   token::{TokIdx, Token, TokenType},
 };
 
-pub struct Ast<'a> {
-  pub toks: Vec<Token<'a>>,
+pub struct Ast {
+  pub toks: Vec<Token>,
   pub nodes: Vec<Node>,
 
   // list of indices into self.nodes
@@ -19,7 +19,7 @@ pub struct Ast<'a> {
 pub struct Parser<'a> {
   ctx: &'a CompilerContext,
   nodes: Vec<Node>,
-  toks: Vec<Token<'a>>,
+  toks: Vec<Token>,
   funcs: Vec<NodeIdx>,
   tokidx: usize,
 }
@@ -78,7 +78,7 @@ impl<'a> Parser<'a> {
     self.nodes.len() - 1
   }
 
-  fn current_tok(&self) -> Option<Token<'a>> {
+  fn current_tok(&self) -> Option<Token> {
     self.toks.get(self.tokidx.clone()).map(|x| x.clone())
   }
 
@@ -89,14 +89,16 @@ impl<'a> Parser<'a> {
     {
       Token {
         ty: TokenType::Number,
-        slice,
+        span,
       } => {
         self.tokidx += 1;
 
         Ok(
           self.push_node(Node {
             data: NodeData::Floating(
-              slice
+              self
+                .ctx
+                .get_str_from_span(span)
                 .parse::<f64>()
                 .ok()
                 .ok_or("error while trying to parse a number".to_owned())?,
@@ -202,7 +204,7 @@ impl<'a> Parser<'a> {
     // get indentation
     let base_indentation_idx = self.expect(TokenType::Indentation)?;
     let base_indentation = &self.toks[base_indentation_idx];
-    let inden_len = base_indentation.slice.len();
+    let inden_len = base_indentation.span.len();
 
     let mut toks = vec![];
 
@@ -212,8 +214,8 @@ impl<'a> Parser<'a> {
       let new_ind: usize = match self.current_tok() {
         Some(Token {
           ty: TokenType::Indentation,
-          slice,
-        }) => slice.len(),
+          span,
+        }) => span.len(),
 
         // break out of parsing loop on EOF
         Some(Token {
@@ -260,7 +262,7 @@ impl<'a> Parser<'a> {
     // if the name is "main",
     // store into the pre-allocated 0 idx,
 
-    if self.toks[name].slice == "main" {
+    if self.ctx.get_str_from_span(*&self.toks[name].span) == "main" {
       self.nodes[0] = Node {
         data: NodeData::FunctionDef(FunctionDef { name, exec }),
         tok: tokidx,
@@ -280,10 +282,10 @@ impl<'a> Parser<'a> {
     while let Token {
       ty: TokenType::Indentation,
       // only expect identation slices that are of indentation 0
-      slice,
+      span,
     } = self.next_tok()
     {
-      if slice.len() != 0 {
+      if span.len() != 0 {
         return Err(
           "Expected an indentation of level 0 when parsing top level declarations".to_string(),
         );
@@ -295,7 +297,7 @@ impl<'a> Parser<'a> {
     Ok(())
   }
 
-  pub fn parse(mut self) -> Result<Ast<'a>, String> {
+  pub fn parse(mut self) -> Result<Ast, String> {
     // reserve some space for the main function
     _ = self.push_node(Node {
       data: NodeData::Add(Binary { left: 0, right: 0 }),

@@ -3,7 +3,7 @@ use std::{
   rc::Rc,
 };
 
-use crate::{diagnostic::Diagnostic, optimizers::OptimizerFlags};
+use crate::{diagnostic::Diagnostic, optimizers::OptimizerFlags, token::Span};
 
 /// context required for lexing, parsing, and emitting
 /// contains all of the required information, and is passed around
@@ -22,6 +22,10 @@ pub struct CompilerContext {
 impl CompilerContext {
   pub fn get_input_str(self: &Self) -> &str {
     &self.filedata
+  }
+
+  pub fn get_str_from_span(self: &Self, span: Span) -> &str {
+    &self.filedata[span.start..span.end]
   }
 
   pub fn get_diagnostics(&self) -> Ref<Vec<Diagnostic>> {

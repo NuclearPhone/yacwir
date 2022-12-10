@@ -4,21 +4,21 @@ use crate::{
   parser::Ast,
 };
 
-pub struct Emitter<'a, 'b> {
-  ast: &'a Ast<'a>,
-  unit: &'b IrUnit,
+pub struct Emitter<'a> {
+  ast: &'a Ast,
+  unit: &'a IrUnit,
 }
 
-impl<'a, 'b> crate::emitter::Emitter<'a, 'b> for Emitter<'a, 'b> {
+impl<'a> crate::emitter::Emitter<'a> for Emitter<'a> {
   type Input = IrUnit;
   type Output = Result<String, String>;
 
-  fn emit(ast: &'a Ast<'a>, unit: &'b Self::Input) -> Self::Output {
+  fn emit(ast: &'a Ast, unit: &'a Self::Input) -> Self::Output {
     Self { ast, unit }.inner_emit()
   }
 }
 
-impl<'a, 'b> Emitter<'a, 'b> {
+impl<'a> Emitter<'a> {
   fn emit_type(&self, ty: Type) -> String {
     match ty {
       Type::Floating => "double".to_string(),

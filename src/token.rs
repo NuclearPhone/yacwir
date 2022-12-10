@@ -31,12 +31,26 @@ pub enum TokenType {
   EOF,
 }
 
+// indexes into the compiled file,
+// avoids lifetime hell
+#[derive(Debug, Clone, Copy)]
+pub struct Span {
+  pub start: usize,
+  pub end: usize,
+}
+
+impl Span {
+  pub fn len(&self) -> usize {
+    self.end - self.start
+  }
+}
+
 #[derive(Debug, Clone)]
-pub struct Token<'a> {
+pub struct Token {
   pub ty: TokenType,
 
-  // slice representing the text of the token
-  pub slice: &'a str,
+  // a span representing the text of this token
+  pub span: Span,
 }
 
 impl Display for TokenType {

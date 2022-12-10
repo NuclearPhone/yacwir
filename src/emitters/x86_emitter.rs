@@ -5,22 +5,23 @@ use crate::{
   emitter::Emitter,
   ir::{InstrIdx, InstructionValue, IrFunction, IrUnit},
   node::Node,
+  parser::Ast,
 };
 
-pub struct X86Emitter<'a, 'b> {
-  ctx: &'a CompilerContext,
-  unit: &'b IrUnit,
+pub struct X86Emitter<'a> {
+  ast: &'a Ast,
+  unit: &'a IrUnit,
 
   buffer: String,
 }
 
-impl<'a, 'b> Emitter<'a, 'b> for X86Emitter<'a, 'b> {
+impl<'a> Emitter<'a> for X86Emitter<'a> {
   type Input = IrUnit;
   type Output = Result<String, String>;
 
-  fn emit(ctx: &'a CompilerContext, unit: &'b IrUnit) -> Self::Output {
+  fn emit(ast: &'a Ast, unit: &'a IrUnit) -> Self::Output {
     Self {
-      ctx,
+      ast,
       unit,
       buffer: String::new(),
     }
@@ -30,7 +31,7 @@ impl<'a, 'b> Emitter<'a, 'b> for X86Emitter<'a, 'b> {
 
 // "const" register : %rbx
 
-impl<'a, 'b> X86Emitter<'a, 'b> {
+impl<'a> X86Emitter<'a> {
   fn emit_const<T>(&mut self, node: T) -> Result<String, String>
   where
     T: Display,
