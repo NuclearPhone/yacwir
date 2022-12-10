@@ -9,6 +9,7 @@ use crate::{
   diagnostic::{Diagnostic, DiagnosticLevel},
   emitter::Emitter,
   emitters::{ir2c_emitter, x86_emitter::X86Emitter},
+  ir::IrFuncDisplay,
   optimizers::optimize,
   sema::TypeChecker,
 };
@@ -61,7 +62,7 @@ fn main() {
   let ir_out = IrEmitter::emit(&ast).unwrap();
   let ir = TypeChecker::typecheck(&ctx, ir_out).unwrap();
   let ir = optimize(&ctx, ir);
-  println!("{}", ir.funcs[0]);
+  println!("{}", IrFuncDisplay(&ctx, &ir.funcs[0]));
 
   // print any diagnostics
   for diagnostic in ctx.get_diagnostics().iter() {
@@ -69,6 +70,6 @@ fn main() {
   }
 
   // let asm = X86Emitter::emit(&ctx, &ir_out).unwrap();
-  let asm = ir2c_emitter::Emitter::emit(&ast, &ir).unwrap();
+  let asm = ir2c_emitter::Emitter::emit(&ctx, &ast, &ir).unwrap();
   println!("\n==== ASM OUTPUT ====\n{}", asm);
 }

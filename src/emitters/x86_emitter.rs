@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, rc::Rc};
 
 use crate::{
   context::CompilerContext,
@@ -9,6 +9,7 @@ use crate::{
 };
 
 pub struct X86Emitter<'a> {
+  ctx: &'a CompilerContext,
   ast: &'a Ast,
   unit: &'a IrUnit,
 
@@ -16,11 +17,12 @@ pub struct X86Emitter<'a> {
 }
 
 impl<'a> Emitter<'a> for X86Emitter<'a> {
-  type Input = IrUnit;
+  type Input = &'a IrUnit;
   type Output = Result<String, String>;
 
-  fn emit(ast: &'a Ast, unit: &'a IrUnit) -> Self::Output {
+  fn emit(ctx: &'a CompilerContext, ast: &'a Ast, unit: Self::Input) -> Self::Output {
     Self {
+      ctx,
       ast,
       unit,
       buffer: String::new(),
@@ -54,7 +56,12 @@ impl<'a> X86Emitter<'a> {
   fn emit_function(&mut self, func: &IrFunction) -> Result<(), String> {
     let block = &func.instrs;
 
-    let prelude = format!(".globl {}\n{}:\n", func.name, func.name);
+    let prelude = format!(
+      ".globl {}\n{}:\n",
+      self.ctx.get_str_from_span(func.name),
+      self.ctx.get_str_from_span(func.name)
+    );
+
     self.buffer.push_str(prelude.as_str());
 
     for i in block.0.iter() {

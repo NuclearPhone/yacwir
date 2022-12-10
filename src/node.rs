@@ -1,4 +1,8 @@
-use crate::{context::CompilerContext, ir::Type, token::TokIdx};
+use crate::{
+  context::CompilerContext,
+  ir::Type,
+  token::{Span, TokIdx},
+};
 
 pub type NodeIdx = usize;
 
@@ -21,8 +25,7 @@ pub enum NodeData {
 
   Floating(f64),
 
-  // index into the token array
-  Identifier(usize),
+  Identifier(Span),
 
   FunctionDef(FunctionDef),
   Block(Vec<NodeIdx>),
@@ -39,7 +42,7 @@ pub struct Binary {
 
 #[derive(Debug)]
 pub struct FunctionDef {
-  pub name: TokIdx,
+  pub name: Span,
 
   // index to a block of nodes
   pub exec: NodeIdx,

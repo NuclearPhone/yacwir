@@ -35,7 +35,7 @@ impl<'a> Parser<'a> {
     })
   }
 
-  fn expect(&mut self, expected_type: TokenType) -> Result<TokIdx, String> {
+  fn expect(&mut self, expected_type: TokenType) -> Result<Token, String> {
     // skip any comments
     while let Some(Token {
       ty: TokenType::Comment,
@@ -51,7 +51,7 @@ impl<'a> Parser<'a> {
 
     if tok.ty == expected_type {
       self.tokidx += 1;
-      Ok(self.tokidx - 1)
+      Ok(tok)
     } else {
       Err(format!(
         "Expected token {}, but found {}",
@@ -202,8 +202,7 @@ impl<'a> Parser<'a> {
     let root_tokidx = self.tokidx;
 
     // get indentation
-    let base_indentation_idx = self.expect(TokenType::Indentation)?;
-    let base_indentation = &self.toks[base_indentation_idx];
+    let base_indentation = self.expect(TokenType::Indentation)?;
     let inden_len = base_indentation.span.len();
 
     let mut toks = vec![];
@@ -262,15 +261,21 @@ impl<'a> Parser<'a> {
     // if the name is "main",
     // store into the pre-allocated 0 idx,
 
-    if self.ctx.get_str_from_span(*&self.toks[name].span) == "main" {
+    if self.ctx.get_str_from_span(name.span) == "main" {
       self.nodes[0] = Node {
-        data: NodeData::FunctionDef(FunctionDef { name, exec }),
+        data: NodeData::FunctionDef(FunctionDef {
+          name: name.span,
+          exec,
+        }),
         tok: tokidx,
       };
       Ok(0)
     } else {
       Ok(self.push_node(Node {
-        data: NodeData::FunctionDef(FunctionDef { name, exec }),
+        data: NodeData::FunctionDef(FunctionDef {
+          name: name.span,
+          exec,
+        }),
         tok: tokidx,
       }))
     }

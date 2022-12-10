@@ -5,16 +5,17 @@ use crate::{
 };
 
 pub struct Emitter<'a> {
+  ctx: &'a CompilerContext,
   ast: &'a Ast,
   unit: &'a IrUnit,
 }
 
 impl<'a> crate::emitter::Emitter<'a> for Emitter<'a> {
-  type Input = IrUnit;
+  type Input = &'a IrUnit;
   type Output = Result<String, String>;
 
-  fn emit(ast: &'a Ast, unit: &'a Self::Input) -> Self::Output {
-    Self { ast, unit }.inner_emit()
+  fn emit(ctx: &'a CompilerContext, ast: &'a Ast, unit: Self::Input) -> Self::Output {
+    Self { ctx, ast, unit }.inner_emit()
   }
 }
 
@@ -66,7 +67,7 @@ impl<'a> Emitter<'a> {
   }
 
   fn emit_function(&self, function: &IrFunction) -> Result<String, String> {
-    let mut buf = format!("int {}() {{\n", function.name);
+    let mut buf = format!("int {}() {{\n", self.ctx.get_str_from_span(function.name));
 
     for idx in 0..function.instrs.0.len() {
       self.emit_instruction(&mut buf, function, idx)?;

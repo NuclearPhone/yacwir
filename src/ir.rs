@@ -6,7 +6,7 @@ use crate::{
   emitter::Emitter,
   node::{Binary, FunctionDef, Node, NodeData, NodeIdx},
   parser::Ast,
-  token::TokIdx,
+  token::{Span, TokIdx},
 };
 
 /*
@@ -132,7 +132,7 @@ pub struct IrBlock(pub Vec<Instruction>);
 #[derive(Debug)]
 pub struct IrFunction {
   // index into the token array
-  pub name: TokIdx,
+  pub name: Span,
 
   pub instrs: IrBlock,
 }
@@ -212,9 +212,16 @@ impl Display for IrBlock {
   }
 }
 
-impl Display for IrFunction {
+pub struct IrFuncDisplay<'a>(pub &'a CompilerContext, pub &'a IrFunction);
+impl<'a> From<(&'a CompilerContext, &'a IrFunction)> for IrFuncDisplay<'a> {
+  fn from(input: (&'a CompilerContext, &'a IrFunction)) -> Self {
+    Self(input.0, input.1)
+  }
+}
+
+impl<'a> Display for IrFuncDisplay<'a> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let instrs = format!("{}", self.instrs);
+    let instrs = format!("{}", self.1.instrs);
     let instrs_format = instrs
       .lines()
       .fold((String::new(), 0), |mut a: (String, u32), i| {
@@ -225,7 +232,11 @@ impl Display for IrFunction {
         a
       });
 
-    let str = format!("Function <{}>:\n{}", self.name, instrs_format.0);
+    let str = format!(
+      "Function <{}>:\n{}",
+      self.0.get_str_from_span(self.1.name),
+      instrs_format.0
+    );
 
     f.write_str(str.as_str())
   }

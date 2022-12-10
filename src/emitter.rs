@@ -4,5 +4,5 @@ pub trait Emitter<'a> {
   type Input;
   type Output;
 
-  fn emit(ast: &'a Ast, input: &'a Self::Input) -> Self::Output;
+  fn emit(ctx: &'a CompilerContext, ast: &'a Ast, input: Self::Input) -> Self::Output;
 }
