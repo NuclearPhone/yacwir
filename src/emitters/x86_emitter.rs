@@ -1,10 +1,9 @@
-use std::{fmt::Display, rc::Rc};
+use std::{fmt::Display};
 
 use crate::{
   context::CompilerContext,
   emitter::Emitter,
-  ir::{InstrIdx, InstructionValue, IrFunction, IrUnit},
-  node::Node,
+  ir::{InstructionValue, IrFunction, IrUnit},
   parser::Ast,
 };
 

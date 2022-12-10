@@ -9,7 +9,6 @@
 use crate::{
   context::CompilerContext,
   diagnostic::{Diagnostic, DiagnosticLevel},
-  emitter::Emitter,
   ir::{InstrIdx, Instruction, InstructionValue, IrBlock, IrFunction, IrUnit, Type},
 };
 

@@ -2,7 +2,6 @@
 // to a variant of SSA form
 
 use crate::{
-  context::CompilerContext,
   ir::{InstrIdx, Instruction, InstructionValue, IrBlock, IrFunction, IrUnit, Type},
   node::{Binary, Node, NodeData, NodeIdx},
   parser::Ast,

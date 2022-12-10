@@ -1,6 +1,5 @@
 use std::{
-  cell::{Cell, Ref, RefCell},
-  rc::Rc,
+  cell::{Ref, RefCell},
 };
 
 use crate::{diagnostic::Diagnostic, optimizers::OptimizerFlags, token::Span};

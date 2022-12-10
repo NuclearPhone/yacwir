@@ -1,5 +1,4 @@
 use crate::{
-  context::CompilerContext,
   ir::Type,
   token::{Span, TokIdx},
 };

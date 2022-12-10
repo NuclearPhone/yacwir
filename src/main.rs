@@ -5,13 +5,8 @@ use context::CompilerContextBuilder;
 use parser::Parser;
 
 use crate::{
-  ast2ir::IrEmitter,
-  diagnostic::{Diagnostic, DiagnosticLevel},
-  emitter::Emitter,
-  emitters::{ir2c_emitter, x86_emitter::X86Emitter},
-  ir::IrFuncDisplay,
-  optimizers::optimize,
-  sema::TypeChecker,
+  ast2ir::IrEmitter, emitter::Emitter, emitters::ir2c_emitter, ir::IrFuncDisplay,
+  optimizers::optimize, sema::TypeChecker,
 };
 
 mod ast2ir;

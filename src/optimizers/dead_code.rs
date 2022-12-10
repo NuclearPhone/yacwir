@@ -11,7 +11,7 @@ pub struct Pass<'a> {
 impl<'a> Pass<'a> {}
 
 impl<'a> OptimizerPass<'a> for Pass<'a> {
-  fn transform(ctx: &'a CompilerContext, unit: IrUnit) -> IrUnit {
+  fn transform(_ctx: &'a CompilerContext, _unit: IrUnit) -> IrUnit {
     unimplemented!()
   }
 }

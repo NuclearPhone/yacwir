@@ -1,10 +1,10 @@
-use std::fmt::Display;
+
 
 use crate::{
   context::CompilerContext,
   lexer::Lexer,
   node::{Binary, FunctionDef, Node, NodeData, NodeIdx, ParameterDeclList},
-  token::{TokIdx, Token, TokenType},
+  token::{Token, TokenType},
 };
 
 pub struct Ast {

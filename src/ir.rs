@@ -2,10 +2,6 @@ use std::fmt::Display;
 
 use crate::{
   context::CompilerContext,
-  diagnostic::{Diagnostic, DiagnosticLevel},
-  emitter::Emitter,
-  node::{Binary, FunctionDef, Node, NodeData, NodeIdx},
-  parser::Ast,
   token::{Span, TokIdx},
 };
 
@@ -154,7 +150,7 @@ pub struct IrUnit {
 ///     %1 ConstInt(2)
 ///     %2 Add(0, 1)
 
-pub fn flatten(unit: IrBlock) -> IrBlock {
+pub fn flatten(_unit: IrBlock) -> IrBlock {
   unimplemented!()
 }
 

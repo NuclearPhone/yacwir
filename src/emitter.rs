@@ -1,4 +1,4 @@
-use crate::{context::CompilerContext, node::Node, parser::Ast};
+use crate::{context::CompilerContext, parser::Ast};
 
 pub trait Emitter<'a> {
   type Input;
