@@ -47,9 +47,17 @@ fn main() {
 
   let ast = Parser::new(&ctx).unwrap().parse().unwrap();
 
+  for (i, t) in ast.toks.iter().enumerate() {
+    if i % 5 == 4 {
+      println!();
+    }
+    print!("{} ", t.ty);
+  }
+  println!();
+
   println!("{:?}", ast.nodes);
 
-  let ir_out = IrEmitter::emit(&ctx, &ast).unwrap();
+  let ir_out = IrEmitter::emit(&ast, &ast).unwrap();
   let ir = TypeChecker::typecheck(&ctx, ir_out).unwrap();
   // let ir = optimize(&ctx, ir);
   println!("{}", ir.funcs[0]);
@@ -60,6 +68,6 @@ fn main() {
   }
 
   // let asm = X86Emitter::emit(&ctx, &ir_out).unwrap();
-  let asm = ir2c_emitter::Emitter::emit(&ctx, &ir).unwrap();
+  let asm = ir2c_emitter::Emitter::emit(&ast, &ir).unwrap();
   println!("\n==== ASM OUTPUT ====\n{}", asm);
 }

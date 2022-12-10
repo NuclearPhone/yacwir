@@ -1,2 +1,5 @@
+# only functions are allowed in global scope
+# global variables are a warning, but allowed
+
 defn main():
     return 2 + 2

@@ -24,6 +24,8 @@ pub enum TokenType {
   Return,
   Defn,
 
+  Comment,
+
   // custom token that does not match to any rule in the parser,
   // used for early returns
   EOF,
@@ -42,14 +44,25 @@ impl Display for TokenType {
     f.write_str(match self {
       TokenType::Number => "number",
       TokenType::Identifier => "identifier",
-      TokenType::LeftParanthesis => "left paranthesis",
-      TokenType::RightParanthesis => "right paranthesis",
+
       TokenType::Plus => "plus",
       TokenType::Minus => "minus",
       TokenType::Asterisk => "asterisk",
       TokenType::Solidus => "solidus",
+
+      TokenType::LeftParanthesis => "left paranthesis",
+      TokenType::RightParanthesis => "right paranthesis",
+
       TokenType::Colon => "colon",
+
+      TokenType::Indentation => "indentation",
+
+      TokenType::Return => "return",
       TokenType::Defn => "defn",
+
+      TokenType::Comment => "comment",
+
+      TokenType::EOF => "EOF",
       _ => unimplemented!(),
     })
   }

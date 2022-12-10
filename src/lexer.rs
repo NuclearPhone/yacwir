@@ -32,20 +32,44 @@ impl<'a> Lexer<'a> {
 
   // assume the \n has already been lexed
   fn _lex_indent<'b>(&'b mut self) -> Result<Token<'a>, String> {
-    let mut ind: usize = 0;
+    if self.input[self.idx..].trim_start().starts_with('#') {
+      self._skip_whitespace();
+      let mut len: usize = 0;
+      while let Some(x) = self._current_char() {
+        if x == '\n' {
+          break;
+        }
 
-    while let Some(ch) = self._current_char() {
-      if ch != ' ' {
-        break;
+        len += 1;
+        self.idx += 1;
       }
-      ind += 1;
+      Ok(Token {
+        ty: TokenType::Comment,
+        slice: &self.input[self.idx - len..self.idx],
+      })
+    } else {
       self.idx += 1;
-    }
+      let mut ind: usize = 0;
 
-    return Ok(Token {
-      ty: TokenType::Indentation,
-      slice: &self.input[self.idx - ind..self.idx],
-    });
+      while let Some(ch) = self._current_char() {
+        // ignore empty line
+        if ch == '\n' {
+          ind = 0;
+          continue;
+        }
+
+        if ch != ' ' {
+          break;
+        }
+        ind += 1;
+        self.idx += 1;
+      }
+
+      Ok(Token {
+        ty: TokenType::Indentation,
+        slice: &self.input[self.idx - ind..self.idx],
+      })
+    }
   }
 
   fn _lex<'b>(&'b mut self) -> Result<Token<'a>, String> {
@@ -57,7 +81,7 @@ impl<'a> Lexer<'a> {
     {
       '\n' => {
         self.idx += 1;
-        return self._lex_indent();
+        self._lex_indent()
       }
 
       '+' => {

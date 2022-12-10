@@ -1,10 +1,11 @@
 use crate::{
   context::CompilerContext,
   ir::{InstructionValue, IrFunction, IrUnit, Type},
+  parser::Ast,
 };
 
 pub struct Emitter<'a, 'b> {
-  ctx: &'a CompilerContext,
+  ast: &'a Ast<'a>,
   unit: &'b IrUnit,
 }
 
@@ -12,8 +13,8 @@ impl<'a, 'b> crate::emitter::Emitter<'a, 'b> for Emitter<'a, 'b> {
   type Input = IrUnit;
   type Output = Result<String, String>;
 
-  fn emit(ctx: &'a CompilerContext, unit: &'b Self::Input) -> Self::Output {
-    Self { ctx, unit }.inner_emit()
+  fn emit(ast: &'a Ast<'a>, unit: &'b Self::Input) -> Self::Output {
+    Self { ast, unit }.inner_emit()
   }
 }
 

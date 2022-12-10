@@ -4,7 +4,7 @@ use crate::{
   context::CompilerContext,
   diagnostic::{Diagnostic, DiagnosticLevel},
   emitter::Emitter,
-  node::{Binary, FunctionDef, Node, NodeIdx},
+  node::{Binary, FunctionDef, Node, NodeData, NodeIdx},
   parser::Ast,
   token::TokIdx,
 };
@@ -165,30 +165,30 @@ impl<'a, 'b> IrEmitter<'a, 'b> {
   ) -> Result<InstrIdx, String> {
     let node = &self.ast.nodes[nidx];
 
-    let (instr_val, instr_ty): (InstructionValue, Type) = match node {
-      Node::Floating { val, .. } => (InstructionValue::ConstFloat(*val), Type::Floating),
+    let (instr_val, instr_ty): (InstructionValue, Type) = match &node.data {
+      NodeData::Floating(val) => (InstructionValue::ConstFloat(*val), Type::Floating),
 
-      Node::Add(bin) => {
+      NodeData::Add(bin) => {
         let (l, r) = self.emit_binary(bin, buffer)?;
         (InstructionValue::Add(l, r), Type::Undecided)
       }
 
-      Node::Subtract(bin) => {
+      NodeData::Subtract(bin) => {
         let (l, r) = self.emit_binary(bin, buffer)?;
         (InstructionValue::Subtract(l, r), Type::Undecided)
       }
 
-      Node::Multiply(bin) => {
+      NodeData::Multiply(bin) => {
         let (l, r) = self.emit_binary(bin, buffer)?;
         (InstructionValue::Multiply(l, r), Type::Undecided)
       }
 
-      Node::Divide(bin) => {
+      NodeData::Divide(bin) => {
         let (l, r) = self.emit_binary(bin, buffer)?;
         (InstructionValue::Divide(l, r), Type::Undecided)
       }
 
-      Node::Block(block) => {
+      NodeData::Block(block) => {
         // block have no Instruction representation,
         // and they should semantically never be transformed as a value
         // thus just return a 0 and hope for the best
@@ -199,7 +199,7 @@ impl<'a, 'b> IrEmitter<'a, 'b> {
         return Ok(0);
       }
 
-      Node::Return(ret) => {
+      NodeData::Return(ret) => {
         let expr = self.emit_node(*ret, buffer)?;
         (InstructionValue::Return(expr), Type::Undecided)
       }
@@ -219,7 +219,7 @@ impl<'a, 'b> IrEmitter<'a, 'b> {
   }
 
   fn emit_function(&mut self, nidx: NodeIdx) -> Result<IrFunction, String> {
-    let Node::FunctionDef(node) = self.ast.nodes.get(nidx).unwrap() else { panic!(); };
+    let Some(Node{data: NodeData::FunctionDef(node), ..}) = self.ast.nodes.get(nidx) else { panic!(); };
 
     let mut buf = vec![];
     self.emit_node(node.exec, &mut buf)?;
@@ -231,19 +231,15 @@ impl<'a, 'b> IrEmitter<'a, 'b> {
   }
 
   fn emit_unit(&mut self) -> Result<IrUnit, String> {
+    // the node in idx 0 can only be a functiondef if and only if defn main is defined
+    let Node {data: NodeData::FunctionDef(_), ..} = self.ast.nodes[0] else {
+      return Err("Main function is not defined".to_string());
+    };
+
     // node-idx 0 is guaranteed to be the function 'main', so start there
     let main = self.emit_function(0)?;
 
     Ok(IrUnit { funcs: vec![main] })
-  }
-}
-
-impl<'a, 'b> Emitter<'a, 'b> for IrEmitter<'a, 'b> {
-  type Input = Ast<'a>;
-  type Output = Result<IrUnit, String>;
-
-  fn emit(ctx: &'a CompilerContext, ast: &'b Ast<'a>) -> Self::Output {
-    Self { ctx, ast }.emit_unit()
   }
 }
 

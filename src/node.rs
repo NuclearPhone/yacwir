@@ -3,13 +3,23 @@ use crate::{context::CompilerContext, ir::Type, token::TokIdx};
 pub type NodeIdx = usize;
 
 #[derive(Debug)]
-pub enum Node {
+pub struct Node {
+  // the actual data of this node
+  pub data: NodeData,
+
+  // root token associated with this node,
+  // used for diagnostics and debugging
+  pub tok: TokIdx,
+}
+
+#[derive(Debug)]
+pub enum NodeData {
   Add(Binary),
   Subtract(Binary),
   Multiply(Binary),
   Divide(Binary),
 
-  Floating { val: f64, tokidx: usize },
+  Floating(f64),
 
   // index into the token array
   Identifier(usize),
