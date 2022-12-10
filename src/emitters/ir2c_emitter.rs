@@ -67,7 +67,18 @@ impl<'a> Emitter<'a> {
   }
 
   fn emit_function(&self, function: &IrFunction) -> Result<String, String> {
-    let mut buf = format!("int {}() {{\n", self.ctx.get_str_from_span(function.name));
+    let name_str = self.ctx.get_str_from_span(function.name);
+    let linkage = if name_str == "main" {
+      "extern"
+    } else {
+      "static"
+    };
+
+    let mut buf = format!(
+      "{linkage} int {name}() {{\n",
+      linkage = linkage,
+      name = name_str
+    );
 
     for idx in 0..function.instrs.0.len() {
       self.emit_instruction(&mut buf, function, idx)?;
