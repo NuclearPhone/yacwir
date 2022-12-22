@@ -1,18 +1,30 @@
-use crate::{context::CompilerContext, ir::Type, token::TokIdx};
+use crate::token::{Span, TokIdx};
 
 pub type NodeIdx = usize;
 
 #[derive(Debug)]
-pub enum Node {
+pub struct Node {
+  // the actual data of this node
+  pub data: NodeData,
+
+  // root token associated with this node,
+  // used for diagnostics and debugging
+  pub tok: TokIdx,
+}
+
+#[derive(Debug)]
+pub enum NodeData {
+  // a value with no data
+  Moot,
+
   Add(Binary),
   Subtract(Binary),
   Multiply(Binary),
   Divide(Binary),
 
-  Floating { val: f64, tokidx: usize },
+  Floating(f64),
 
-  // index into the token array
-  Identifier(usize),
+  Identifier(Span),
 
   FunctionDef(FunctionDef),
   Block(Vec<NodeIdx>),
@@ -29,10 +41,21 @@ pub struct Binary {
 
 #[derive(Debug)]
 pub struct FunctionDef {
-  pub name: TokIdx,
+  pub name: Span,
+
+  pub return_type: Type,
 
   // index to a block of nodes
   pub exec: NodeIdx,
+}
+
+#[derive(Debug)]
+pub enum Type {
+  Undecided,
+
+  Integer,
+  Floating,
+  Moot,
 }
 
 pub type ParameterDeclList<'a> = Vec<(&'a str, Option<Type>)>;

@@ -15,6 +15,8 @@ pub enum TokenType {
   LeftParanthesis,
   RightParanthesis,
 
+  ThinArrow,
+
   Colon,
 
   // used for scope
@@ -24,17 +26,38 @@ pub enum TokenType {
   Return,
   Defn,
 
+  Comment,
+
+  // type keywords
+  Integer,
+  Floating,
+  Moot,
+
   // custom token that does not match to any rule in the parser,
   // used for early returns
   EOF,
 }
 
+// indexes into the compiled file,
+// avoids lifetime hell
+#[derive(Debug, Clone, Copy)]
+pub struct Span {
+  pub start: usize,
+  pub end: usize,
+}
+
+impl Span {
+  pub fn len(&self) -> usize {
+    self.end - self.start
+  }
+}
+
 #[derive(Debug, Clone)]
-pub struct Token<'a> {
+pub struct Token {
   pub ty: TokenType,
 
-  // slice representing the text of the token
-  pub slice: &'a str,
+  // a span representing the text of this token
+  pub span: Span,
 }
 
 impl Display for TokenType {
@@ -42,15 +65,31 @@ impl Display for TokenType {
     f.write_str(match self {
       TokenType::Number => "number",
       TokenType::Identifier => "identifier",
-      TokenType::LeftParanthesis => "left paranthesis",
-      TokenType::RightParanthesis => "right paranthesis",
+
       TokenType::Plus => "plus",
       TokenType::Minus => "minus",
       TokenType::Asterisk => "asterisk",
       TokenType::Solidus => "solidus",
+
+      TokenType::LeftParanthesis => "left paranthesis",
+      TokenType::RightParanthesis => "right paranthesis",
+
       TokenType::Colon => "colon",
+
+      TokenType::ThinArrow => "->",
+
+      TokenType::Indentation => "indentation",
+
+      TokenType::Return => "return",
       TokenType::Defn => "defn",
-      _ => unimplemented!(),
+
+      TokenType::Integer => "Integer",
+      TokenType::Floating => "Floating",
+      TokenType::Moot => "Moot",
+
+      TokenType::Comment => "comment",
+
+      TokenType::EOF => "EOF",
     })
   }
 }

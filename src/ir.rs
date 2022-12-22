@@ -2,11 +2,7 @@ use std::fmt::Display;
 
 use crate::{
   context::CompilerContext,
-  diagnostic::{Diagnostic, DiagnosticLevel},
-  emitter::Emitter,
-  node::{Binary, FunctionDef, Node, NodeIdx},
-  parser::Ast,
-  token::TokIdx,
+  token::{Span, TokIdx},
 };
 
 /*
@@ -55,6 +51,41 @@ goes into:
 %6 Phi(%3, %5)
 
 
+
+*/
+
+/*
+
+// BINARY OPERATIONS
+binary operations, such as Add, Sub, Mul, Div,
+  only apply to integer and floating values within the IR
+user defined operator overloads or compiler intrinsic operators
+  get transformed into function calls during the Ast2Ir emission process
+
+*/
+
+/*
+
+multiple level of IRs?
+
+- untyped high level representation (HIR)
+  generated from the raw AST
+  contains dataflow, but as a flat map
+  types are not propogated yet
+
+  fun main():
+    %0 = ConstInt(0)
+    %1 = ConstInt(1)
+    %2 = if ( LessThan(%0, %1) ):
+            ConstInt(2)
+         else:
+            ConstInt(3)
+    %3 = return %2
+
+- typed high level representation (THIR)
+  generated from UTHIR
+  contains dataflow, but as a flat map
+  where most of the optimizations take place
 
 */
 
@@ -121,6 +152,9 @@ pub enum Type {
 
   // a 64-bit signed integer
   Integer,
+
+  // equivalent to a void value
+  Moot,
 }
 
 // a block is a list of IrInstructions where control flow
@@ -132,7 +166,7 @@ pub struct IrBlock(pub Vec<Instruction>);
 #[derive(Debug)]
 pub struct IrFunction {
   // index into the token array
-  pub name: TokIdx,
+  pub name: Span,
 
   pub instrs: IrBlock,
 }
@@ -140,111 +174,6 @@ pub struct IrFunction {
 #[derive(Debug)]
 pub struct IrUnit {
   pub funcs: Vec<IrFunction>,
-}
-
-pub struct IrEmitter<'a, 'b> {
-  ctx: &'a CompilerContext,
-  ast: &'b Ast<'a>,
-}
-
-impl<'a, 'b> IrEmitter<'a, 'b> {
-  fn emit_binary(
-    &mut self,
-    binary: &Binary,
-    buffer: &mut Vec<Instruction>,
-  ) -> Result<(InstrIdx, InstrIdx), String> {
-    let l = self.emit_node(binary.left, buffer)?;
-    let r = self.emit_node(binary.right, buffer)?;
-    Ok((l, r))
-  }
-
-  fn emit_node(
-    &mut self,
-    nidx: NodeIdx,
-    buffer: &mut Vec<Instruction>,
-  ) -> Result<InstrIdx, String> {
-    let node = &self.ast.nodes[nidx];
-
-    let (instr_val, instr_ty): (InstructionValue, Type) = match node {
-      Node::Floating { val, .. } => (InstructionValue::ConstFloat(*val), Type::Floating),
-
-      Node::Add(bin) => {
-        let (l, r) = self.emit_binary(bin, buffer)?;
-        (InstructionValue::Add(l, r), Type::Undecided)
-      }
-
-      Node::Subtract(bin) => {
-        let (l, r) = self.emit_binary(bin, buffer)?;
-        (InstructionValue::Subtract(l, r), Type::Undecided)
-      }
-
-      Node::Multiply(bin) => {
-        let (l, r) = self.emit_binary(bin, buffer)?;
-        (InstructionValue::Multiply(l, r), Type::Undecided)
-      }
-
-      Node::Divide(bin) => {
-        let (l, r) = self.emit_binary(bin, buffer)?;
-        (InstructionValue::Divide(l, r), Type::Undecided)
-      }
-
-      Node::Block(block) => {
-        // block have no Instruction representation,
-        // and they should semantically never be transformed as a value
-        // thus just return a 0 and hope for the best
-        for nidx in block {
-          self.emit_node(*nidx, buffer)?;
-        }
-
-        return Ok(0);
-      }
-
-      Node::Return(ret) => {
-        let expr = self.emit_node(*ret, buffer)?;
-        (InstructionValue::Return(expr), Type::Undecided)
-      }
-
-      _ => return Err(format!("unknown node in ast->ir emitter {:?}", node)),
-    };
-
-    buffer.push(Instruction {
-      val: instr_val,
-
-      ty: instr_ty,
-      // TODO: implement this
-      tok: 0,
-    });
-
-    Ok(buffer.len() - 1)
-  }
-
-  fn emit_function(&mut self, nidx: NodeIdx) -> Result<IrFunction, String> {
-    let Node::FunctionDef(node) = self.ast.nodes.get(nidx).unwrap() else { panic!(); };
-
-    let mut buf = vec![];
-    self.emit_node(node.exec, &mut buf)?;
-
-    Ok(IrFunction {
-      name: node.name,
-      instrs: IrBlock(buf),
-    })
-  }
-
-  fn emit_unit(&mut self) -> Result<IrUnit, String> {
-    // node-idx 0 is guaranteed to be the function 'main', so start there
-    let main = self.emit_function(0)?;
-
-    Ok(IrUnit { funcs: vec![main] })
-  }
-}
-
-impl<'a, 'b> Emitter<'a, 'b> for IrEmitter<'a, 'b> {
-  type Input = Ast<'a>;
-  type Output = Result<IrUnit, String>;
-
-  fn emit(ctx: &'a CompilerContext, ast: &'b Ast<'a>) -> Self::Output {
-    Self { ctx, ast }.emit_unit()
-  }
 }
 
 /// "flattens" a block, by un-fragmenting all of the SSA
@@ -259,7 +188,7 @@ impl<'a, 'b> Emitter<'a, 'b> for IrEmitter<'a, 'b> {
 ///     %1 ConstInt(2)
 ///     %2 Add(0, 1)
 
-pub fn flatten(unit: IrBlock) -> IrBlock {
+pub fn flatten(_unit: IrBlock) -> IrBlock {
   unimplemented!()
 }
 
@@ -300,37 +229,70 @@ impl Display for InstructionValue {
 
 impl Display for Instruction {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let str = format!("{}\t as {}", self.val, self.ty);
+    // assume that no instruction display will ever get past 40 cols
+    // could probably do some length finageling
+    let str = format!("{}\x1b[40G as {}", self.val, self.ty);
     f.write_str(str.as_str())
   }
 }
 
 impl Display for IrBlock {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    if self.0.len() == 0 {
+      return f.write_str("");
+    }
+
     let mut str = String::new();
 
     for instr in self.0.iter() {
       str.push_str(format!("{}\n", instr).as_str());
     }
 
-    f.write_str(str.as_str())
+    // calculate the maximum length of the idx as a str
+    let idx_disp_max_len = {
+      let log = self.0.len().ilog10() as usize + 1;
+
+      if log % 2 == 0 {
+        log + 1
+      } else {
+        log
+      }
+    };
+
+    let out = str
+      .lines()
+      .fold(
+        (String::new(), 0),
+        |(mut acc, mut idx): (String, u32), next| {
+          acc.push_str(format!("=={:^width$}==\t", idx, width = idx_disp_max_len).as_str());
+          acc.push_str(next);
+          acc.push('\n');
+          idx += 1;
+          (acc, idx)
+        },
+      )
+      .0;
+
+    f.write_str(out.as_str())
   }
 }
 
-impl Display for IrFunction {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let instrs = format!("{}", self.instrs);
-    let instrs_format = instrs
-      .lines()
-      .fold((String::new(), 0), |mut a: (String, u32), i| {
-        a.0 += &format!("%{} =\t", a.1);
-        a.0 += i;
-        a.0 += "\n";
-        a.1 += 1;
-        a
-      });
+pub struct IrFuncDisplay<'a>(pub &'a CompilerContext, pub &'a IrFunction);
+impl<'a> From<(&'a CompilerContext, &'a IrFunction)> for IrFuncDisplay<'a> {
+  fn from(input: (&'a CompilerContext, &'a IrFunction)) -> Self {
+    Self(input.0, input.1)
+  }
+}
 
-    let str = format!("Function <{}>:\n{}", self.name, instrs_format.0);
+impl<'a> Display for IrFuncDisplay<'a> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let instrs = format!("{}", self.1.instrs);
+
+    let str = format!(
+      "Function <{}>:\n{}",
+      self.0.get_str_from_span(self.1.name),
+      instrs,
+    );
 
     f.write_str(str.as_str())
   }
@@ -341,6 +303,7 @@ impl Display for Type {
     f.write_str(match self {
       Type::Integer => "Integer",
       Type::Floating => "Floating",
+      Type::Moot => "Moot",
       Type::Invalid => "Invalid",
       Type::Undecided => "Undecided",
     })

@@ -1,2 +1,14 @@
-defn main():
+# --- ideas ---
+# only functions are allowed in global scope
+# local functions/lambdas later
+# mostly static typing
+# bignum support
+# only support i64, f64, and bignum
+
+
+
+defn test() -> Integer:
+    return 2
+
+defn main() -> Integer:
     return 2 + 2

@@ -26,11 +26,8 @@ impl Diagnostic {
   pub fn display(&self, ctx: &CompilerContext, toks: &Vec<Token>) -> String {
     let str = ctx.get_input_str();
 
-    // do some weird pointer arithmetic to get the location of the token in the main string
-    let startpos = toks[self.tokidx].slice.as_ptr() as usize - str.as_ptr() as usize;
-
     // find the line position in input
-    let lines = str[..startpos + 1].lines();
+    let lines = str[..toks[self.tokidx].span.start + 1].lines();
     let line = lines.clone().count();
     let line_data = lines.last().unwrap();
 

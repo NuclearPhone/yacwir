@@ -1,18 +1,17 @@
 #![allow(dead_code)]
 // ^ remove this later
 
+use std::rc::Rc;
+
 use context::CompilerContextBuilder;
 use parser::Parser;
 
 use crate::{
-  diagnostic::{Diagnostic, DiagnosticLevel},
-  emitter::Emitter,
-  emitters::{ir2c_emitter, x86_emitter::X86Emitter},
-  ir::IrEmitter,
-  optimizers::optimize,
-  sema::TypeChecker,
+  ast2ir::IrEmitter, emitter::Emitter, emitters::ir2c_emitter, ir::IrFuncDisplay,
+  optimizers::optimize, sema::SemaContext,
 };
 
+mod ast2ir;
 mod context;
 mod diagnostic;
 mod emitter;
@@ -47,12 +46,24 @@ fn main() {
 
   let ast = Parser::new(&ctx).unwrap().parse().unwrap();
 
-  println!("{:?}", ast.nodes);
+  for (i, t) in ast.toks.iter().enumerate() {
+    if i % 5 == 4 {
+      println!();
+    }
+    print!("{} ", t.ty);
+  }
+  println!();
 
-  let ir_out = IrEmitter::emit(&ctx, &ast).unwrap();
-  let ir = TypeChecker::typecheck(&ctx, ir_out).unwrap();
+  println!("{:?}", ast.nodes);
+  println!("FUNCS: {:?}", ast.funcs);
+
+  let ir_out = IrEmitter::emit(&ast).unwrap();
+  let ir = SemaContext::run(&ctx, ir_out);
   // let ir = optimize(&ctx, ir);
-  println!("{}", ir.funcs[0]);
+
+  for func in ir.funcs.iter() {
+    println!("{}\n", IrFuncDisplay(&ctx, func));
+  }
 
   // print any diagnostics
   for diagnostic in ctx.get_diagnostics().iter() {
@@ -60,6 +71,6 @@ fn main() {
   }
 
   // let asm = X86Emitter::emit(&ctx, &ir_out).unwrap();
-  let asm = ir2c_emitter::Emitter::emit(&ctx, &ir).unwrap();
+  let asm = ir2c_emitter::Ir2CEmitterContext::emit(&ctx, &ast, ir).unwrap();
   println!("\n==== ASM OUTPUT ====\n{}", asm);
 }

@@ -1,9 +1,8 @@
 use std::{
-  cell::{Cell, Ref, RefCell},
-  rc::Rc,
+  cell::{Ref, RefCell},
 };
 
-use crate::{diagnostic::Diagnostic, optimizers::OptimizerFlags};
+use crate::{diagnostic::Diagnostic, optimizers::OptimizerFlags, token::Span};
 
 /// context required for lexing, parsing, and emitting
 /// contains all of the required information, and is passed around
@@ -20,18 +19,30 @@ pub struct CompilerContext {
 }
 
 impl CompilerContext {
+  // these are all getter/setter functions,
+  // always inline these
+
+  #[inline(always)]
   pub fn get_input_str(self: &Self) -> &str {
     &self.filedata
   }
 
+  #[inline(always)]
+  pub fn get_str_from_span(self: &Self, span: Span) -> &str {
+    &self.filedata[span.start..span.end]
+  }
+
+  #[inline(always)]
   pub fn get_diagnostics(&self) -> Ref<Vec<Diagnostic>> {
     self.diagnostics.borrow()
   }
 
+  #[inline(always)]
   pub fn get_optimizer_flags(self: &Self) -> OptimizerFlags {
     self.optimizer_flags.clone()
   }
 
+  #[inline(always)]
   pub fn push_diagnostic(&self, diagnostic: Diagnostic) {
     self.diagnostics.borrow_mut().push(diagnostic);
   }
