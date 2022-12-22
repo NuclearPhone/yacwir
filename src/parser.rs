@@ -1,9 +1,7 @@
-
-
 use crate::{
   context::CompilerContext,
   lexer::Lexer,
-  node::{Binary, FunctionDef, Node, NodeData, NodeIdx, ParameterDeclList},
+  node::{Binary, FunctionDef, Node, NodeData, NodeIdx, ParameterDeclList, Type},
   token::{Token, TokenType},
 };
 
@@ -106,6 +104,29 @@ impl<'a> Parser<'a> {
             tok: self.tokidx,
           }),
         )
+      }
+
+      Token {
+        ty: TokenType::LeftParanthesis,
+        ..
+      } => {
+        self.tokidx += 1;
+
+        if self
+          .current_tok()
+          .ok_or("Expected more after a left-paranthesis")?
+          .ty
+          == TokenType::RightParanthesis
+        {
+          return Ok(self.push_node(Node {
+            data: NodeData::Moot,
+            tok: self.tokidx,
+          }));
+        } else {
+          let out = self.parse_expr()?;
+          self.expect(TokenType::RightParanthesis)?;
+          Ok(out)
+        }
       }
 
       _ => Err(format!(
@@ -254,7 +275,28 @@ impl<'a> Parser<'a> {
     _ = self.expect(TokenType::Defn)?;
     let name = self.expect(TokenType::Identifier)?;
     let _params = self.parse_parameter_declaration()?;
-    _ = self.expect(TokenType::Colon)?;
+
+    let return_type = match self.next_tok().ty {
+      TokenType::ThinArrow => {
+        let out = match self.next_tok().ty {
+          TokenType::Integer => Type::Integer,
+          TokenType::Floating => Type::Floating,
+          TokenType::Moot => Type::Moot,
+          _ => return Err("invalid token while trying to parse a return type".to_string()),
+        };
+
+        self.expect(TokenType::Colon)?;
+        out
+      }
+
+      TokenType::Colon => Type::Moot,
+
+      _ => {
+        return Err(
+          "Expected either a return-type-arrow or a colon after a function header".to_string(),
+        )
+      }
+    };
 
     let exec = self.parse_block()?;
 
@@ -266,6 +308,7 @@ impl<'a> Parser<'a> {
         data: NodeData::FunctionDef(FunctionDef {
           name: name.span,
           exec,
+          return_type,
         }),
         tok: tokidx,
       };
@@ -275,6 +318,7 @@ impl<'a> Parser<'a> {
         data: NodeData::FunctionDef(FunctionDef {
           name: name.span,
           exec,
+          return_type,
         }),
         tok: tokidx,
       }))

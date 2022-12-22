@@ -1,12 +1,14 @@
 #![allow(dead_code)]
 // ^ remove this later
 
+use std::rc::Rc;
+
 use context::CompilerContextBuilder;
 use parser::Parser;
 
 use crate::{
   ast2ir::IrEmitter, emitter::Emitter, emitters::ir2c_emitter, ir::IrFuncDisplay,
-  optimizers::optimize, sema::TypeChecker,
+  optimizers::optimize, sema::SemaContext,
 };
 
 mod ast2ir;
@@ -53,11 +55,15 @@ fn main() {
   println!();
 
   println!("{:?}", ast.nodes);
+  println!("FUNCS: {:?}", ast.funcs);
 
   let ir_out = IrEmitter::emit(&ast).unwrap();
-  let ir = TypeChecker::typecheck(&ctx, ir_out).unwrap();
-  let ir = optimize(&ctx, ir);
-  println!("{}", IrFuncDisplay(&ctx, &ir.funcs[0]));
+  let ir = SemaContext::run(&ctx, ir_out);
+  // let ir = optimize(&ctx, ir);
+
+  for func in ir.funcs.iter() {
+    println!("{}\n", IrFuncDisplay(&ctx, func));
+  }
 
   // print any diagnostics
   for diagnostic in ctx.get_diagnostics().iter() {
@@ -65,6 +71,6 @@ fn main() {
   }
 
   // let asm = X86Emitter::emit(&ctx, &ir_out).unwrap();
-  let asm = ir2c_emitter::Emitter::emit(&ctx, &ast, &ir).unwrap();
+  let asm = ir2c_emitter::Ir2CEmitterContext::emit(&ctx, &ast, ir).unwrap();
   println!("\n==== ASM OUTPUT ====\n{}", asm);
 }

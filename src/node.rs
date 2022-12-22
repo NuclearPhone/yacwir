@@ -1,7 +1,4 @@
-use crate::{
-  ir::Type,
-  token::{Span, TokIdx},
-};
+use crate::token::{Span, TokIdx};
 
 pub type NodeIdx = usize;
 
@@ -17,6 +14,9 @@ pub struct Node {
 
 #[derive(Debug)]
 pub enum NodeData {
+  // a value with no data
+  Moot,
+
   Add(Binary),
   Subtract(Binary),
   Multiply(Binary),
@@ -43,8 +43,19 @@ pub struct Binary {
 pub struct FunctionDef {
   pub name: Span,
 
+  pub return_type: Type,
+
   // index to a block of nodes
   pub exec: NodeIdx,
+}
+
+#[derive(Debug)]
+pub enum Type {
+  Undecided,
+
+  Integer,
+  Floating,
+  Moot,
 }
 
 pub type ParameterDeclList<'a> = Vec<(&'a str, Option<Type>)>;

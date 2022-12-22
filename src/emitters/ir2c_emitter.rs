@@ -1,17 +1,24 @@
+use std::rc::Rc;
+
 use crate::{
   context::CompilerContext,
   ir::{InstructionValue, IrFunction, IrUnit, Type},
   parser::Ast,
 };
 
-pub struct Emitter<'a> {
+pub struct Ir2CEmitterContext<'a> {
   ctx: &'a CompilerContext,
   ast: &'a Ast,
-  unit: &'a IrUnit,
+  unit: IrUnit,
 }
 
-impl<'a> crate::emitter::Emitter<'a> for Emitter<'a> {
-  type Input = &'a IrUnit;
+struct FunctionEmitter<'a> {
+  emitter: &'a Ir2CEmitterContext<'a>,
+  function: &'a IrFunction,
+}
+
+impl<'a> crate::emitter::Emitter<'a> for Ir2CEmitterContext<'a> {
+  type Input = IrUnit;
   type Output = Result<String, String>;
 
   fn emit(ctx: &'a CompilerContext, ast: &'a Ast, unit: Self::Input) -> Self::Output {
@@ -19,13 +26,44 @@ impl<'a> crate::emitter::Emitter<'a> for Emitter<'a> {
   }
 }
 
-impl<'a> Emitter<'a> {
+impl<'a> Ir2CEmitterContext<'a> {
   fn emit_type(&self, ty: Type) -> String {
     match ty {
       Type::Floating => "double".to_string(),
       Type::Integer => "long long".to_string(),
+      Type::Moot => "void".to_string(),
 
       Type::Undecided | Type::Invalid => "ran into invalid types in typechecker".to_string(),
+    }
+  }
+
+  // TODO:
+  //   implement custom add/sub/mul/div binary functions
+  //   for each type
+
+  fn generate_binary_functions(&self, buffer: &mut String, ty: Type) {
+    match ty {
+      Type::Undecided => panic!("ran into a non-propogated type in ir2c"),
+      Type::Invalid => panic!("ran into invalid type in ir2c"),
+
+      Type::Floating => buffer.push_str(
+        "
+            static inline double wolnir_double_add(double left, double right) {{
+              return left + right;
+            }}
+          ",
+      ),
+
+      Type::Integer => buffer.push_str(
+        "
+            static inline long long wolnir_long_long_add(double left, double right) {{
+              return left + right;
+            }}
+          ",
+      ),
+
+      // can not generate binary operation for moot
+      Type::Moot => {}
     }
   }
 
@@ -41,6 +79,7 @@ impl<'a> Emitter<'a> {
       InstructionValue::ConstInteger(i) => {
         format!("long long TEMP{} = (long long){};", instridx, i)
       }
+
       InstructionValue::ConstFloat(f) => format!("double TEMP{} = (double){}f;", instridx, f),
 
       InstructionValue::Add(l, r) => {
@@ -84,7 +123,7 @@ impl<'a> Emitter<'a> {
       self.emit_instruction(&mut buf, function, idx)?;
     }
 
-    buf.push('}');
+    buf.push_str("}\n\n");
     Ok(buf)
   }
 

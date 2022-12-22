@@ -1,22 +1,22 @@
-use std::{fmt::Display};
+use std::fmt::Display;
 
 use crate::{
   context::CompilerContext,
   emitter::Emitter,
-  ir::{InstructionValue, IrFunction, IrUnit},
+  ir::{Instruction, InstructionValue, IrFunction, IrUnit},
   parser::Ast,
 };
 
-pub struct X86Emitter<'a> {
+pub struct X86EmitterContext<'a> {
   ctx: &'a CompilerContext,
   ast: &'a Ast,
-  unit: &'a IrUnit,
+  unit: IrUnit,
 
   buffer: String,
 }
 
-impl<'a> Emitter<'a> for X86Emitter<'a> {
-  type Input = &'a IrUnit;
+impl<'a> Emitter<'a> for X86EmitterContext<'a> {
+  type Input = IrUnit;
   type Output = Result<String, String>;
 
   fn emit(ctx: &'a CompilerContext, ast: &'a Ast, unit: Self::Input) -> Self::Output {
@@ -32,49 +32,57 @@ impl<'a> Emitter<'a> for X86Emitter<'a> {
 
 // "const" register : %rbx
 
-impl<'a> X86Emitter<'a> {
-  fn emit_const<T>(&mut self, node: T) -> Result<String, String>
-  where
-    T: Display,
-  {
-    Ok(format!("  movq ${}, %rbx", node))
-  }
-
-  fn emit_instr(&mut self, instr: &InstructionValue) -> Result<(), String> {
-    let out = match instr {
-      InstructionValue::ConstInteger(i) => self.emit_const(i),
-      InstructionValue::ConstFloat(f) => self.emit_const(f),
-
-      _ => unimplemented!(),
-    }?;
-
-    self.buffer.push_str(out.as_str());
-    Ok(())
-  }
-
-  fn emit_function(&mut self, func: &IrFunction) -> Result<(), String> {
-    let block = &func.instrs;
-
-    let prelude = format!(
-      ".globl {}\n{}:\n",
-      self.ctx.get_str_from_span(func.name),
-      self.ctx.get_str_from_span(func.name)
-    );
-
-    self.buffer.push_str(prelude.as_str());
-
-    for i in block.0.iter() {
-      self.emit_instr(&i.val)?;
-    }
-
-    Ok(())
-  }
-
+impl<'a> X86EmitterContext<'a> {
   fn inner_start_emit(mut self) -> Result<String, String> {
     for func in self.unit.funcs.iter() {
-      self.emit_function(func)?;
+      let out = FunctionEmitter::emit(&self, &func);
     }
 
     Ok(self.buffer)
+  }
+}
+
+struct FunctionEmitter<'a> {
+  sema: &'a X86EmitterContext<'a>,
+  func: &'a IrFunction,
+
+  out_buffer: String,
+}
+
+impl<'a> FunctionEmitter<'a> {
+  fn emit(ctx: &'a X86EmitterContext, func: &'a IrFunction) -> String {
+    Self {
+      sema: ctx,
+      func,
+      out_buffer: String::new(),
+    }
+    .inner_emit()
+    .out_buffer
+  }
+
+  fn emit_instruction(&mut self, instr: &Instruction) {
+    // let out = match instr {
+    //   InstructionValue::ConstInteger(i) => self.emit_const(i),
+    //   InstructionValue::ConstFloat(f) => self.emit_const(f),
+
+    //   _ => unimplemented!(),
+    // }?;
+
+    // self.out_buffer.push_str(out.as_str());
+  }
+
+  fn inner_emit(mut self) -> Self {
+    let prelude = format!(
+      ".globl {}\n{}:\n",
+      self.sema.ctx.get_str_from_span(self.func.name),
+      self.sema.ctx.get_str_from_span(self.func.name)
+    );
+
+    self.out_buffer.push_str(prelude.as_str());
+
+    for i in self.func.instrs.0.iter() {
+      self.emit_instruction(i);
+    }
+    self
   }
 }

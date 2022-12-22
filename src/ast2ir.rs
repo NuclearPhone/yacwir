@@ -77,7 +77,7 @@ impl<'a> IrEmitter<'a> {
 
       ty: instr_ty,
       // TODO: implement this
-      tok: 0,
+      tok: node.tok,
     });
 
     Ok(buffer.len() - 1)
@@ -101,10 +101,13 @@ impl<'a> IrEmitter<'a> {
       return Err("Main function is not defined".to_string());
     };
 
-    // node-idx 0 is guaranteed to be the function 'main', so start there
-    let main = self.emit_function(0)?;
+    let mut funcs = vec![];
 
-    Ok(IrUnit { funcs: vec![main] })
+    for func in self.ast.funcs.iter() {
+      funcs.push(self.emit_function(*func)?);
+    }
+
+    Ok(IrUnit { funcs })
   }
 
   pub fn emit(ast: &'a Ast) -> Result<IrUnit, String> {

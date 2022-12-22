@@ -58,12 +58,14 @@ impl<'a> Lexer<'a> {
         // ignore empty line
         if ch == '\n' {
           ind = 0;
+          self.idx += 1;
           continue;
         }
 
         if ch != ' ' {
           break;
         }
+
         ind += 1;
         self.idx += 1;
       }
@@ -103,13 +105,29 @@ impl<'a> Lexer<'a> {
 
       '-' => {
         self.idx += 1;
-        Ok(Token {
-          ty: TokenType::Minus,
-          span: Span {
-            start: self.idx - 1,
-            end: self.idx,
-          },
-        })
+
+        if self
+          ._current_char()
+          .ok_or("Ran out of characters while in lex")?
+          == '>'
+        {
+          self.idx += 1;
+          Ok(Token {
+            ty: TokenType::ThinArrow,
+            span: Span {
+              start: self.idx - 2,
+              end: self.idx,
+            },
+          })
+        } else {
+          Ok(Token {
+            ty: TokenType::Minus,
+            span: Span {
+              start: self.idx - 1,
+              end: self.idx,
+            },
+          })
+        }
       }
 
       '*' => {
@@ -208,8 +226,11 @@ impl<'a> Lexer<'a> {
         Ok(Token {
           ty: match slice {
             "return" => TokenType::Return,
-
             "defn" => TokenType::Defn,
+
+            "Integer" => TokenType::Integer,
+            "Floating" => TokenType::Floating,
+            "Moot" => TokenType::Moot,
 
             _ => TokenType::Identifier,
           },
