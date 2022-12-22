@@ -90,6 +90,7 @@ multiple level of IRs?
 */
 
 pub type InstrIdx = usize;
+pub type BlockIdx = usize;
 
 #[derive(Debug, Clone)]
 pub enum InstructionValue {
@@ -101,7 +102,14 @@ pub enum InstructionValue {
   // a list of instruction indexes
   // which values can be "moved" into this one
   // used for conditionals, see top of doc
-  Phi(Vec<InstrIdx>),
+
+  // left: a block to pull from
+  // right: an instruction idx pointing to another Phi/PhiTerminal instructinon
+  Phi(BlockIdx, InstrIdx),
+
+  // left: a block to pull from
+  // right: a block to pull from
+  PhiTerminal(BlockIdx, BlockIdx),
 
   // constants
   ConstFloat(f64),
@@ -168,7 +176,10 @@ pub struct IrFunction {
   // index into the token array
   pub name: Span,
 
-  pub instrs: IrBlock,
+  // index 0 is the "main" block,
+  // where execution begins within this function
+  pub blocks: Vec<IrBlock>,
+  // TODO: parameters
 }
 
 #[derive(Debug)]
