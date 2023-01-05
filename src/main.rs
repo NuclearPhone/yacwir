@@ -1,20 +1,18 @@
 #![allow(dead_code)]
 // ^ remove this later
 
-use std::rc::Rc;
-
 use context::CompilerContextBuilder;
 use parser::Parser;
 
 use crate::{
-  ast2ir::IrEmitter, emitter::Emitter, emitters::ir2c_emitter, ir::IrFuncDisplay,
-  optimizers::optimize, sema::SemaContext,
+  emitters::ir2c_emitter,
+  optimizers::optimize,
+  sema::{type_propogation::propogate, SemaContext},
 };
 
 mod ast2ir;
 mod context;
 mod diagnostic;
-mod emitter;
 mod emitters;
 mod ir;
 mod lexer;
@@ -24,18 +22,34 @@ mod parser;
 mod sema;
 mod token;
 
-fn main() {
+struct Arguments {
+  filename: String,
+}
+
+fn parse_args() -> Result<Arguments, String> {
   let mut args = std::env::args();
 
   if args.len() != 2 {
-    println!("Expected an input file-name");
-    std::process::exit(1);
+    return Err("Expected an input filename".to_string());
   }
+  args.next().unwrap();
 
-  let filename = args.nth(1).unwrap();
+  let filename = args.next().unwrap();
 
-  let Ok(filedata) = std::fs::read_to_string(filename.clone()) else {
-    println!("Failed to read file {filename}");
+  Ok(Arguments { filename })
+}
+
+fn main() {
+  let args = match parse_args() {
+    Ok(args) => args,
+    Err(e) => {
+      println!("Error: {}", e);
+      std::process::exit(1);
+    }
+  };
+
+  let Ok(filedata) = std::fs::read_to_string(args.filename.clone()) else {
+    println!("Failed to read file {}", args.filename);
     std::process::exit(1);
   };
 
@@ -57,20 +71,28 @@ fn main() {
   println!("{:?}", ast.nodes);
   println!("FUNCS: {:?}", ast.funcs);
 
-  let ir_out = IrEmitter::emit(&ast).unwrap();
-  let ir = SemaContext::run(&ctx, ir_out);
-  // let ir = optimize(&ctx, ir);
+  let mut sema_ctx = SemaContext::new(&ctx);
 
-  for func in ir.funcs.iter() {
-    println!("{}\n", IrFuncDisplay(&ctx, func));
-  }
+  let ir_out = ast2ir::emit(&ctx, &mut sema_ctx, &ast);
+  let ir_out = propogate(&ctx, &sema_ctx, ir_out);
+  let ir_out = optimize(&ctx, &sema_ctx, ir_out);
+  println!("{}", ir_out.display(&ctx));
 
-  // print any diagnostics
-  for diagnostic in ctx.get_diagnostics().iter() {
-    println!("{}", diagnostic.display(&ctx, &ast.toks));
-  }
+  let c_out = ir2c_emitter::emit(&ctx, ir_out);
+  println!("{}\n", c_out);
 
-  // let asm = X86Emitter::emit(&ctx, &ir_out).unwrap();
-  let asm = ir2c_emitter::Ir2CEmitterContext::emit(&ctx, &ast, ir).unwrap();
-  println!("\n==== ASM OUTPUT ====\n{}", asm);
+  std::fs::write("./out.c", c_out).unwrap();
+
+  // for func in ir.funcs.iter() {
+  //   println!("{}\n", IrFuncDisplay(&ctx, func));
+  // }
+
+  // // print any diagnostics
+  // for diagnostic in ctx.get_diagnostics().iter() {
+  //   println!("{}", diagnostic.display(&ctx, &ast.toks));
+  // }
+
+  // // let asm = X86Emitter::emit(&ctx, &ir_out).unwrap();
+  // let asm = ir2c_emitter::Ir2CEmitterContext::emit(&ctx, &ast, ir).unwrap();
+  // println!("\n==== ASM OUTPUT ====\n{}", asm);
 }

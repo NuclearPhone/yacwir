@@ -1,6 +1,4 @@
-use std::{
-  cell::{Ref, RefCell},
-};
+use std::cell::{Ref, RefCell};
 
 use crate::{diagnostic::Diagnostic, optimizers::OptimizerFlags, token::Span};
 
@@ -14,7 +12,6 @@ pub struct CompilerContext {
   verbose: bool,
 
   optimizer_flags: OptimizerFlags,
-
   diagnostics: RefCell<Vec<Diagnostic>>,
 }
 

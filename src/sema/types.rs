@@ -1,7 +1,8 @@
 use crate::ir::Type;
 
-// handles type conflicts, comparisons
-// and type declarations
+// the main typechecking construct
+// manages all of the individual processes required
+// including declarations, conflicts, comparisons, etc
 pub struct Types {}
 
 impl Types {

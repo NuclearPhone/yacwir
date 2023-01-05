@@ -302,7 +302,6 @@ impl<'a> Parser<'a> {
 
     // if the name is "main",
     // store into the pre-allocated 0 idx,
-
     if self.ctx.get_str_from_span(name.span) == "main" {
       self.nodes[0] = Node {
         data: NodeData::FunctionDef(FunctionDef {
@@ -340,13 +339,17 @@ impl<'a> Parser<'a> {
         );
       };
       let func = self.parse_function()?;
-      self.funcs.push(func);
+      if func != 0 {
+        self.funcs.push(func);
+      }
     }
 
     Ok(())
   }
 
   pub fn parse(mut self) -> Result<Ast, String> {
+    self.funcs.push(0);
+
     // reserve some space for the main function
     _ = self.push_node(Node {
       data: NodeData::Add(Binary { left: 0, right: 0 }),

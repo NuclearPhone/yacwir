@@ -5,9 +5,13 @@
 # bignum support
 # only support i64, f64, and bignum
 
+#globl alloc = [[default-alloc]]
+#
+#defn ptrTest():
+#    let x: *Integer = alloc()
+#    ^x = 24
 
-
-defn test() -> Integer:
+defn func() -> Floating:
     return 2
 
 defn main() -> Integer:

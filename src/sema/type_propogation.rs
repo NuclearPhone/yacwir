@@ -1,31 +1,58 @@
 use crate::{
+  context::CompilerContext,
   diagnostic::{Diagnostic, DiagnosticLevel},
   ir::{InstrIdx, Instruction, InstructionValue, IrBlock, IrFunction, IrUnit, Type},
+  token::Span,
 };
 
 use super::SemaContext;
 
-pub fn propogate<'a>(sema: &'a SemaContext<'a>, unit: IrUnit) -> IrUnit {
-  let mut funcs = vec![];
+// - type-propogation does not rely on any sort
+//   of instruction removal/addition to the instruction-map
+//   thus it is safe to mutate the instruction map in-place without
+//   having to adjust the block map
+pub fn propogate<'a>(ctx: &'a CompilerContext, sema: &'a SemaContext, mut unit: IrUnit) -> IrUnit {
+  // all reachable blocks start at the first block of every functions
 
-  for func in unit.funcs.iter() {
-    funcs.push(FunctionTypePropogator::propogate(sema, func));
+  let func_clone = unit.funcs.clone();
+
+  for func in func_clone {
+    BlockTypePropogator {
+      ctx,
+      sema,
+      span: unit.blocks[func.block as usize],
+      unit: &mut unit,
+    }
+    .propogate();
   }
 
-  IrUnit { funcs }
+  unit
 }
 
-// type-lowering construct for a single function
-// contains a reference to the global typechecking context
-struct FunctionTypePropogator<'a> {
-  sema: &'a SemaContext<'a>,
-  function: &'a IrFunction,
-  out_buffer: Vec<Instruction>,
+// type-lowering construct for a single block
+// recursively creates a new block propogator for every
+// block that branches off from the current one
+// stops execution when running into a HALT/Return block
+struct BlockTypePropogator<'a> {
+  ctx: &'a CompilerContext,
+  sema: &'a SemaContext,
+
+  // the unit that which this block is associated with
+  unit: &'a mut IrUnit,
+
+  // the associated span of the block
+  span: Span,
 }
 
-impl<'a> FunctionTypePropogator<'a> {
+impl<'a> BlockTypePropogator<'a> {
+  fn propogate(mut self) {
+    for i in self.span.start..self.span.end {
+      self.propogate_instruction(i as u32);
+    }
+  }
+
   fn propogate_instruction(&mut self, instridx: InstrIdx) {
-    let instr = &self.function.instrs.0[instridx];
+    let instr = &self.unit.instructions[instridx as usize];
 
     let tok = instr.tok;
 
@@ -40,11 +67,11 @@ impl<'a> FunctionTypePropogator<'a> {
       | InstructionValue::Divide(l, r) => {
         // instructions can only reference instructions that come before them,
         // thus these instructions are guaranteed to be typed
-        let l_ty = self.out_buffer[l].ty;
-        let r_ty = self.out_buffer[r].ty;
+        let l_ty = self.unit.instructions[l as usize].ty;
+        let r_ty = self.unit.instructions[r as usize].ty;
 
         let ty = if !self.sema.types.binary_compatable_types(l_ty, r_ty) {
-          self.sema.ctx.push_diagnostic(Diagnostic {
+          self.ctx.push_diagnostic(Diagnostic {
             info: format!(
               "Invalid binary operation types in add operator: {} and {}",
               l_ty, r_ty
@@ -57,7 +84,7 @@ impl<'a> FunctionTypePropogator<'a> {
 
           Type::Invalid
         } else if !self.sema.types.coerce_type(l_ty, r_ty) {
-          self.sema.ctx.push_diagnostic(Diagnostic {
+          self.ctx.push_diagnostic(Diagnostic {
             info: format!(
               "Unable to coerce the left side operand of a binary operation to the type of the right side operand"
             ),
@@ -78,7 +105,7 @@ impl<'a> FunctionTypePropogator<'a> {
       }
 
       InstructionValue::Return(ridx) => {
-        let ty = self.out_buffer[ridx].ty;
+        let ty = self.unit.instructions[ridx as usize].ty;
 
         Instruction {
           val: instr.val.clone(),
@@ -90,28 +117,6 @@ impl<'a> FunctionTypePropogator<'a> {
       _ => unimplemented!(),
     };
 
-    self.out_buffer.push(out);
-  }
-
-  fn inner_propogate(mut self) -> Self {
-    for instr in 0..self.function.instrs.0.len() {
-      self.propogate_instruction(instr)
-    }
-    self
-  }
-
-  pub fn propogate(typechecker: &'a SemaContext<'a>, function: &'a IrFunction) -> IrFunction {
-    IrFunction {
-      name: function.name,
-      instrs: IrBlock(
-        Self {
-          sema: typechecker,
-          function,
-          out_buffer: vec![],
-        }
-        .inner_propogate()
-        .out_buffer,
-      ),
-    }
+    self.unit.instructions[instridx as usize] = out;
   }
 }

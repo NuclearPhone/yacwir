@@ -89,27 +89,43 @@ multiple level of IRs?
 
 */
 
-pub type InstrIdx = usize;
-pub type BlockIdx = usize;
+pub type BlockIdx = u32;
+pub type FuncIdx = u32;
+pub type InstrIdx = u32;
+
+#[derive(Debug, Clone)]
+pub struct IntraBlockIdx {
+  block: BlockIdx,
+  instr: InstrIdx,
+}
+
+impl From<(u32, u32)> for IntraBlockIdx {
+  fn from(value: (u32, u32)) -> Self {
+    Self {
+      block: value.0,
+      instr: value.1,
+    }
+  }
+}
 
 #[derive(Debug, Clone)]
 pub enum InstructionValue {
   // attempts to perform typecasting to a specified type
   Cast(InstrIdx, Type),
 
-  Assign(InstrIdx),
-
   // a list of instruction indexes
   // which values can be "moved" into this one
   // used for conditionals, see top of doc
+  // phi functions _MUST_ have at least 2 sources to be implemented,
+  // thus this uses S expressions
 
   // left: a block to pull from
   // right: an instruction idx pointing to another Phi/PhiTerminal instructinon
-  Phi(BlockIdx, InstrIdx),
+  Phi(IntraBlockIdx, InstrIdx),
 
   // left: a block to pull from
   // right: a block to pull from
-  PhiTerminal(BlockIdx, BlockIdx),
+  PhiTerminal(IntraBlockIdx, IntraBlockIdx),
 
   // constants
   ConstFloat(f64),
@@ -121,6 +137,20 @@ pub enum InstructionValue {
   Multiply(InstrIdx, InstrIdx),
   Divide(InstrIdx, InstrIdx),
 
+  // checks if two values are equal
+  // only works on primitive types
+  Equal(InstrIdx, InstrIdx),
+
+  // checks a statement, checks if it is true,
+  // if it is true, then go to block a,
+  // if it is false, then go to block b
+  Branch {
+    bool_statement: bool,
+    block_a: BlockIdx,
+    block_b: BlockIdx,
+  },
+
+  // returns from a function from within a block
   Return(InstrIdx),
 
   Call {
@@ -171,19 +201,21 @@ pub enum Type {
 #[derive(Debug)]
 pub struct IrBlock(pub Vec<Instruction>);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IrFunction {
-  // index into the token array
   pub name: Span,
 
-  // index 0 is the "main" block,
-  // where execution begins within this function
-  pub blocks: Vec<IrBlock>,
-  // TODO: parameters
+  // index into the block-span-array (see IrUnit)
+  // for the entry block of this function
+  pub block: BlockIdx,
+
+  pub ret_type: Type,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct IrUnit {
+  pub instructions: Vec<Instruction>,
+  pub blocks: Vec<Span>,
   pub funcs: Vec<IrFunction>,
 }
 
@@ -218,6 +250,13 @@ optimize them, push the operands, then push the operator
 
 // beauty print functions
 
+impl Display for IntraBlockIdx {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let out = format!("({}, {})", self.block, self.instr);
+    f.write_str(&out)
+  }
+}
+
 impl Display for InstructionValue {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     let str: String = match self {
@@ -247,68 +286,6 @@ impl Display for Instruction {
   }
 }
 
-impl Display for IrBlock {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    if self.0.len() == 0 {
-      return f.write_str("");
-    }
-
-    let mut str = String::new();
-
-    for instr in self.0.iter() {
-      str.push_str(format!("{}\n", instr).as_str());
-    }
-
-    // calculate the maximum length of the idx as a str
-    let idx_disp_max_len = {
-      let log = self.0.len().ilog10() as usize + 1;
-
-      if log % 2 == 0 {
-        log + 1
-      } else {
-        log
-      }
-    };
-
-    let out = str
-      .lines()
-      .fold(
-        (String::new(), 0),
-        |(mut acc, mut idx): (String, u32), next| {
-          acc.push_str(format!("=={:^width$}==\t", idx, width = idx_disp_max_len).as_str());
-          acc.push_str(next);
-          acc.push('\n');
-          idx += 1;
-          (acc, idx)
-        },
-      )
-      .0;
-
-    f.write_str(out.as_str())
-  }
-}
-
-pub struct IrFuncDisplay<'a>(pub &'a CompilerContext, pub &'a IrFunction);
-impl<'a> From<(&'a CompilerContext, &'a IrFunction)> for IrFuncDisplay<'a> {
-  fn from(input: (&'a CompilerContext, &'a IrFunction)) -> Self {
-    Self(input.0, input.1)
-  }
-}
-
-impl<'a> Display for IrFuncDisplay<'a> {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let instrs = format!("{}", self.1.instrs);
-
-    let str = format!(
-      "Function <{}>:\n{}",
-      self.0.get_str_from_span(self.1.name),
-      instrs,
-    );
-
-    f.write_str(str.as_str())
-  }
-}
-
 impl Display for Type {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.write_str(match self {
@@ -318,5 +295,62 @@ impl Display for Type {
       Type::Invalid => "Invalid",
       Type::Undecided => "Undecided",
     })
+  }
+}
+
+impl IrUnit {
+  pub fn display(&self, ctx: &CompilerContext) -> String {
+    let funcs = (0..self.funcs.len())
+      .into_iter()
+      .fold(String::new(), |mut a, f| {
+        a += &self.display_function(ctx, f as u32);
+        a
+      });
+
+    format!("=== IRUNIT BEGIN ===\n{}=== IRUNIT END===\n", funcs)
+  }
+
+  pub fn display_function(&self, ctx: &CompilerContext, function: FuncIdx) -> String {
+    let function = &self.funcs[function as usize];
+    format!(
+      "defn {}\n{}\n",
+      ctx.get_str_from_span(function.name),
+      self.display_block(function.block)
+    )
+  }
+
+  // also displays any blocks that it dominates
+  pub fn display_block(&self, idx: BlockIdx) -> String {
+    let block = self.blocks[idx as usize];
+
+    let instrs = &self.instructions[block.start..block.end];
+
+    let max_num_len = (instrs.len().ilog(10) as usize).max(4);
+
+    let instr_data = instrs
+      .iter()
+      .fold(
+        (block.start, format!("BLOCK #{}\n", idx)),
+        |(mut x, mut a), i| {
+          a += format!("%{:<max_num_len$} {i}\n", x).as_str();
+          x += 1;
+          (x, a)
+        },
+      )
+      .1;
+
+    if let InstructionValue::Branch {
+      block_a, block_b, ..
+    } = instrs.last().unwrap().val
+    {
+      format!(
+        "{}\n{}\n{}\n",
+        instr_data,
+        self.display_block(block_a),
+        self.display_block(block_b)
+      )
+    } else {
+      instr_data
+    }
   }
 }

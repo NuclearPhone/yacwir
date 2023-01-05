@@ -40,6 +40,7 @@ pub enum TokenType {
 
 // indexes into the compiled file,
 // avoids lifetime hell
+// TODO: mark this with phantomdata to ensure memory safety
 #[derive(Debug, Clone, Copy)]
 pub struct Span {
   pub start: usize,

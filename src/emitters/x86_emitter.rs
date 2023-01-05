@@ -2,7 +2,6 @@ use std::fmt::Display;
 
 use crate::{
   context::CompilerContext,
-  emitter::Emitter,
   ir::{Instruction, InstructionValue, IrFunction, IrUnit},
   parser::Ast,
 };

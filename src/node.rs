@@ -33,13 +33,13 @@ pub enum NodeData {
   Return(NodeIdx),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Binary {
   pub left: NodeIdx,
   pub right: NodeIdx,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct FunctionDef {
   pub name: Span,
 
@@ -49,7 +49,7 @@ pub struct FunctionDef {
   pub exec: NodeIdx,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Type {
   Undecided,
 

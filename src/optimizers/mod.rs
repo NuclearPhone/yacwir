@@ -1,8 +1,8 @@
-use crate::{context::CompilerContext, ir::IrUnit};
+use crate::{context::CompilerContext, ir::IrUnit, sema::SemaContext};
 
 pub mod constant_folding;
-pub mod dead_code;
-pub mod defrag;
+// pub mod dead_code;
+// pub mod defrag;
 
 /*
 
@@ -17,11 +17,6 @@ pub mod defrag;
     leaving the work to another function
 
 */
-
-pub trait OptimizerPass<'a> {
-  // apply an optimizing transform upon unit and return it
-  fn transform(ctx: &'a CompilerContext, unit: IrUnit) -> IrUnit;
-}
 
 // a list of different optimizer passes that can be appled to
 // the IR
@@ -40,11 +35,11 @@ impl Default for OptimizerFlags {
 
 // eats @unit, and transforms it into a new IrUnit with optimizations
 // applied to the code
-pub fn optimize(ctx: &CompilerContext, unit: IrUnit) -> IrUnit {
+pub fn optimize(ctx: &CompilerContext, sema: &SemaContext, unit: IrUnit) -> IrUnit {
   let flags = ctx.get_optimizer_flags();
 
   let unit = if flags.const_folding {
-    constant_folding::Pass::transform(ctx, unit)
+    constant_folding::fold(sema, unit)
   } else {
     unit
   };
