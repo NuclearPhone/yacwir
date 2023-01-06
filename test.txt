@@ -1,18 +1,11 @@
 # --- ideas ---
-# only functions are allowed in global scope
-# local functions/lambdas later
-# mostly static typing
-# bignum support
-# only support i64, f64, and bignum
-
+# import c headers and call them
 #globl alloc = [[default-alloc]]
 #
 #defn ptrTest():
-#    let x: *Integer = alloc()
+#    let x: *Integer = [alloc: *Integer]
 #    ^x = 24
+# return a signed byte
 
-defn func() -> Floating:
-    return 2
-
-defn main() -> Integer:
+defn main() -> I8:
     return 2 + 2

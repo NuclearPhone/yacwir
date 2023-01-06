@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::{
   context::CompilerContext,
-  ir::{BlockIdx, FuncIdx, InstrIdx, InstructionValue, IrFunction, IrUnit, Type},
+  ir::{BlockIdx, FuncIdx, InstrIdx, InstructionValue, IrFunction, IrUnit, PrimType, Type},
   parser::Ast,
   token::Span,
 };
@@ -29,13 +29,42 @@ impl<'a> IR2CEmitter<'a> {
   // renders a type and pushes it to the end of the buffer
   // does not render a space after the type
   fn render_type(&mut self, ty: Type) {
-    self.buffer.push_str(match ty {
-      Type::Undecided | Type::Invalid => panic!(),
+    self.buffer.push_str(match ty.prim {
+      PrimType::ComptimeInt
+      | PrimType::ComptimeUnsigned
+      | PrimType::ComptimeFloat
+      | PrimType::Undecided
+      | PrimType::Invalid => {
+        panic!()
+      }
 
-      Type::Floating => "double",
-      Type::Integer => "long long",
-      Type::Moot => "void",
+      PrimType::Floating(bitwidth) => match bitwidth {
+        32 => "float",
+        64 => "double",
+        _ => panic!(),
+      },
+
+      PrimType::Integer(bitwidth) => match bitwidth {
+        1..=8 => "int8_t",
+        9..=16 => "int16_t",
+        17..=32 => "int32_t",
+        33..=64 => "int64_t",
+        _ => unimplemented!(),
+      },
+
+      PrimType::Unsigned(bitwidth) => match bitwidth {
+        1..=8 => "uint8_t",
+        9..=16 => "uint16_t",
+        17..=32 => "uint32_t",
+        33..=64 => "uint64_t",
+        _ => unimplemented!(),
+      },
+
+      PrimType::Moot => "void",
+      PrimType::UserDef => unimplemented!(),
     });
+
+    self.buffer += format!("{:*<width$}", "", width = ty.ptr as usize).as_str();
   }
 
   fn render_comment(&mut self, comment: &str) {
@@ -61,13 +90,14 @@ impl<'a> IR2CEmitter<'a> {
   fn render_instr(&mut self, instridx: InstrIdx) {
     self.buffer += "\t";
     match self.unit.instructions[instridx as usize].val {
+      // TODO: default consts to the default word size of the architecture
       InstructionValue::ConstInteger(i) => {
-        self.render_type(Type::Integer);
+        self.render_type(PrimType::Integer(64).into());
         self.buffer += format!(" _{instridx} = {i};\n").as_str();
       }
 
       InstructionValue::ConstFloat(f) => {
-        self.render_type(Type::Floating);
+        self.render_type(PrimType::Floating(64).into());
         self.buffer += format!(" _{instridx} = {f:?}f;\n").as_str();
       }
 
@@ -111,7 +141,17 @@ impl<'a> IR2CEmitter<'a> {
       self.render_type(function.ret_type);
       self.buffer += " ";
       self.buffer += self.ctx.get_str_from_span(function.name);
-      self.buffer += "()";
+      self.buffer += "(";
+
+      for (pidx, param) in function.params.iter().enumerate() {
+        self.render_type(param.1);
+        self.buffer += format!(" PARAM{pidx}").as_str();
+        if pidx != function.params.len() - 1 {
+          self.buffer += ",";
+        }
+      }
+
+      self.buffer += ")";
     }
   }
 

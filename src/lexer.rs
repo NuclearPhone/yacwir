@@ -163,6 +163,17 @@ impl<'a> Lexer<'a> {
         })
       }
 
+      ',' => {
+        self.idx += 1;
+        Ok(Token {
+          ty: TokenType::Comma,
+          span: Span {
+            start: self.idx - 1,
+            end: self.idx,
+          },
+        })
+      }
+
       '(' => {
         self.idx += 1;
         Ok(Token {
@@ -227,10 +238,6 @@ impl<'a> Lexer<'a> {
           ty: match slice {
             "return" => TokenType::Return,
             "defn" => TokenType::Defn,
-
-            "Integer" => TokenType::Integer,
-            "Floating" => TokenType::Floating,
-            "Moot" => TokenType::Moot,
 
             _ => TokenType::Identifier,
           },

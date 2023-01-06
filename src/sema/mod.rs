@@ -4,6 +4,7 @@ use self::types::Types;
 
 // mod binary_lowering;
 // mod type_checking;
+pub mod checker;
 pub mod type_propogation;
 mod types;
 

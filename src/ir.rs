@@ -177,7 +177,7 @@ pub struct Instruction {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Type {
+pub enum PrimType {
   // an undecided type, not allowed during codegen
   Undecided,
 
@@ -185,14 +185,40 @@ pub enum Type {
   // typechecking for an instruction had failed
   Invalid,
 
-  // a 64-bit floating point number
-  Floating,
+  // integers and floating point numbers
+  // of unspecified size during sema
+  // eventually gets reduced to a concrete floating/integer type
+  ComptimeFloat,
+  ComptimeInt,
+  ComptimeUnsigned,
 
-  // a 64-bit signed integer
-  Integer,
+  // usize -> bitwidth of the type
+  Floating(usize),
+  Integer(usize),
+  Unsigned(usize),
 
   // equivalent to a void value
   Moot,
+
+  // a user defined type
+  UserDef,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Type {
+  pub prim: PrimType,
+  // number of indirections to the datatype, e.g. 2 = char**
+  // only allow up to 255 indirections
+  pub ptr: usize,
+}
+
+impl From<PrimType> for Type {
+  fn from(value: PrimType) -> Self {
+    Self {
+      prim: value,
+      ptr: 0,
+    }
+  }
 }
 
 // a block is a list of IrInstructions where control flow
@@ -201,9 +227,22 @@ pub enum Type {
 #[derive(Debug)]
 pub struct IrBlock(pub Vec<Instruction>);
 
+// external function declarations
+#[derive(Debug, Clone)]
+pub struct IrExternalFunc {
+  pub name: Span,
+
+  // e.g. p0 => int | p1 => float | p2 => char*
+  pub params: Vec<(Span, Type)>,
+}
+
 #[derive(Debug, Clone)]
 pub struct IrFunction {
   pub name: Span,
+
+  // most functions will never have >10 params, so
+  // this is very cheap to clone
+  pub params: Vec<(Span, Type)>,
 
   // index into the block-span-array (see IrUnit)
   // for the entry block of this function
@@ -288,13 +327,23 @@ impl Display for Instruction {
 
 impl Display for Type {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    f.write_str(match self {
-      Type::Integer => "Integer",
-      Type::Floating => "Floating",
-      Type::Moot => "Moot",
-      Type::Invalid => "Invalid",
-      Type::Undecided => "Undecided",
-    })
+    let x: String = match self.prim {
+      PrimType::Integer(bitwidth) => format!("I{bitwidth}"),
+
+      PrimType::Floating(bitwidth) => format!("F{bitwidth}"),
+
+      PrimType::Unsigned(bitwidth) => format!("U{bitwidth}"),
+
+      PrimType::Moot => "Moot".to_string(),
+      PrimType::Invalid => "Invalid".to_string(),
+      PrimType::Undecided => "Undecided".to_string(),
+      PrimType::UserDef => unimplemented!(),
+      PrimType::ComptimeFloat => "CompFloat".to_string(),
+      PrimType::ComptimeInt => "CompInt".to_string(),
+      PrimType::ComptimeUnsigned => "CompUnsigned".to_string(),
+    };
+
+    f.write_str(format!("{:*>width$}", x, width = self.ptr).as_str())
   }
 }
 

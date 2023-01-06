@@ -1,7 +1,7 @@
 use crate::{
   context::CompilerContext,
   diagnostic::{Diagnostic, DiagnosticLevel},
-  ir::{InstrIdx, Instruction, InstructionValue, IrBlock, IrFunction, IrUnit, Type},
+  ir::{InstrIdx, Instruction, InstructionValue, IrBlock, IrFunction, IrUnit, PrimType, Type},
   token::Span,
 };
 
@@ -82,7 +82,7 @@ impl<'a> BlockTypePropogator<'a> {
             tokidx: instr.tok,
           });
 
-          Type::Invalid
+          PrimType::Invalid.into()
         } else if !self.sema.types.coerce_type(l_ty, r_ty) {
           self.ctx.push_diagnostic(Diagnostic {
             info: format!(
@@ -92,7 +92,7 @@ impl<'a> BlockTypePropogator<'a> {
             tokidx: instr.tok,
           });
 
-          Type::Invalid
+          PrimType::Invalid.into()
         } else {
           r_ty
         };

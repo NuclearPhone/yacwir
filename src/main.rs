@@ -60,22 +60,18 @@ fn main() {
 
   let ast = Parser::new(&ctx).unwrap().parse().unwrap();
 
-  for (i, t) in ast.toks.iter().enumerate() {
-    if i % 5 == 4 {
-      println!();
-    }
-    print!("{} ", t.ty);
-  }
-  println!();
-
-  println!("{:?}", ast.nodes);
-  println!("FUNCS: {:?}", ast.funcs);
+  // for (i, t) in ast.toks.iter().enumerate() {
+  //   if i % 5 == 4 {
+  //     println!();
+  //   }
+  //   print!("{} ", t.ty);
+  // }
 
   let mut sema_ctx = SemaContext::new(&ctx);
 
   let ir_out = ast2ir::emit(&ctx, &mut sema_ctx, &ast);
   let ir_out = propogate(&ctx, &sema_ctx, ir_out);
-  let ir_out = optimize(&ctx, &sema_ctx, ir_out);
+  // let ir_out = optimize(&ctx, &sema_ctx, ir_out);
   println!("{}", ir_out.display(&ctx));
 
   let c_out = ir2c_emitter::emit(&ctx, ir_out);

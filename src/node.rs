@@ -39,26 +39,42 @@ pub struct Binary {
   pub right: NodeIdx,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct FunctionDef {
   pub name: Span,
-
+  pub params: Vec<(Span, Type)>,
   pub return_type: Type,
-
-  // index to a block of nodes
   pub exec: NodeIdx,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Type {
+pub enum PrimType {
   Undecided,
 
-  Integer,
-  Floating,
+  // usize => bitwidth
+  Integer(usize),
+  Unsigned(usize),
+  Floating(usize),
+
   Moot,
+
+  UserDef,
 }
 
-pub type ParameterDeclList<'a> = Vec<(&'a str, Option<Type>)>;
+#[derive(Debug, Clone, Copy)]
+pub struct Type {
+  pub prim: PrimType,
+  pub ptr: usize,
+}
+
+impl From<PrimType> for Type {
+  fn from(value: PrimType) -> Self {
+    Self {
+      prim: value,
+      ptr: 0,
+    }
+  }
+}
 
 // impl Node {
 //   fn display(&self, ctx: &CompilerContext, indentation: usize, buffer: &mut String) {

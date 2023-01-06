@@ -1,8 +1,8 @@
 use crate::{
   context::CompilerContext,
   lexer::Lexer,
-  node::{Binary, FunctionDef, Node, NodeData, NodeIdx, ParameterDeclList, Type},
-  token::{Token, TokenType},
+  node::{Binary, FunctionDef, Node, NodeData, NodeIdx, PrimType, Type},
+  token::{Span, Token, TokenType},
 };
 
 pub struct Ast {
@@ -78,6 +78,86 @@ impl<'a> Parser<'a> {
 
   fn current_tok(&self) -> Option<Token> {
     self.toks.get(self.tokidx.clone()).map(|x| x.clone())
+  }
+
+  // parses a token into an integer
+  fn expect_number(&mut self) -> Option<usize> {
+    let Token {ty: TokenType::Number, span} = self.next_tok() else {
+      return None;
+    };
+
+    let str = self.ctx.get_str_from_span(span);
+    let num = str.parse::<usize>().ok()?;
+    return Some(num);
+  }
+
+  fn parse_type(&mut self) -> Result<Type, String> {
+    let span_begin = self.current_tok().unwrap().span.start;
+
+    let mut ptr: usize = 0;
+
+    while let Token {
+      ty: TokenType::Asterisk,
+      ..
+    } = self.current_tok().unwrap()
+    {
+      ptr += 1;
+      _ = self.next_tok();
+    }
+
+    if let Token {
+      ty: TokenType::Identifier,
+      span: span_end,
+    } = self.next_tok()
+    {
+      // dont ask whats going on here
+
+      let sp = self.ctx.get_str_from_span(span_end);
+      let mut x = 0;
+
+      _ = sp
+        .chars()
+        .map(|c| {
+          if c.is_alphabetic() {
+            x += 1
+          }
+        })
+        .collect::<()>();
+
+      let primtype = if x == 1 {
+        match sp.chars().next().unwrap() {
+          'I' => {
+            let Some(bitwidth) = sp[1..].parse::<usize>().ok() else { return Err("Expected bitwidth while trying to parse an integer type".to_string())};
+            PrimType::Integer(bitwidth)
+          }
+
+          'U' => {
+            let Some(bitwidth) = sp[1..].parse::<usize>().ok() else { return Err("Expected bitwidth while trying to parse an unsigned type".to_string())};
+            PrimType::Unsigned(bitwidth)
+          }
+
+          'F' => {
+            let Some(bitwidth) = sp[1..].parse::<usize>().ok() else { return Err("Expected bitwidth while trying to parse an floating type".to_string())};
+            PrimType::Floating(bitwidth)
+          }
+
+          _ => PrimType::UserDef,
+        }
+      } else {
+        if sp == "Moot" {
+          PrimType::Moot
+        } else {
+          PrimType::UserDef
+        }
+      };
+
+      Ok(Type {
+        prim: primtype,
+        ptr,
+      })
+    } else {
+      Err("Expected an identifier while trying to parse a type.".to_string())
+    }
   }
 
   fn parse_factor(&mut self) -> Result<NodeIdx, String> {
@@ -260,13 +340,34 @@ impl<'a> Parser<'a> {
     }))
   }
 
-  fn parse_parameter_declaration(&mut self) -> Result<ParameterDeclList, String> {
+  fn parse_parameter_declaration(&mut self) -> Result<Vec<(Span, Type)>, String> {
+    let mut params = vec![];
+
     _ = self.expect(TokenType::LeftParanthesis)?;
-    _ = self.expect(TokenType::RightParanthesis)?;
+
+    loop {
+      if let TokenType::RightParanthesis = self.current_tok().unwrap().ty {
+        _ = self.next_tok();
+        break;
+      }
+
+      let name = self.expect(TokenType::Identifier)?;
+      _ = self.expect(TokenType::Colon);
+      let ty = self.parse_type()?;
+      params.push((name.span, ty));
+
+      let TokenType::Comma = self.next_tok().ty else {
+        if let TokenType::RightParanthesis = self.next_tok().ty {
+          break;
+        }
+
+        return Err("Expected a comma in parameter decl".to_string())
+      };
+    }
 
     // TODO: implement function parameters
 
-    Ok(vec![])
+    Ok(params)
   }
 
   fn parse_function(&mut self) -> Result<NodeIdx, String> {
@@ -274,22 +375,16 @@ impl<'a> Parser<'a> {
 
     _ = self.expect(TokenType::Defn)?;
     let name = self.expect(TokenType::Identifier)?;
-    let _params = self.parse_parameter_declaration()?;
+    let params = self.parse_parameter_declaration()?;
 
     let return_type = match self.next_tok().ty {
       TokenType::ThinArrow => {
-        let out = match self.next_tok().ty {
-          TokenType::Integer => Type::Integer,
-          TokenType::Floating => Type::Floating,
-          TokenType::Moot => Type::Moot,
-          _ => return Err("invalid token while trying to parse a return type".to_string()),
-        };
-
+        let out = self.parse_type()?;
         self.expect(TokenType::Colon)?;
         out
       }
 
-      TokenType::Colon => Type::Moot,
+      TokenType::Colon => PrimType::Moot.into(),
 
       _ => {
         return Err(
@@ -306,6 +401,7 @@ impl<'a> Parser<'a> {
       self.nodes[0] = Node {
         data: NodeData::FunctionDef(FunctionDef {
           name: name.span,
+          params,
           exec,
           return_type,
         }),
@@ -316,6 +412,7 @@ impl<'a> Parser<'a> {
       Ok(self.push_node(Node {
         data: NodeData::FunctionDef(FunctionDef {
           name: name.span,
+          params,
           exec,
           return_type,
         }),

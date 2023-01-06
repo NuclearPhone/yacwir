@@ -19,6 +19,8 @@ pub enum TokenType {
 
   Colon,
 
+  Comma,
+
   // used for scope
   Indentation,
 
@@ -27,11 +29,6 @@ pub enum TokenType {
   Defn,
 
   Comment,
-
-  // type keywords
-  Integer,
-  Floating,
-  Moot,
 
   // custom token that does not match to any rule in the parser,
   // used for early returns
@@ -76,6 +73,7 @@ impl Display for TokenType {
       TokenType::RightParanthesis => "right paranthesis",
 
       TokenType::Colon => "colon",
+      TokenType::Comma => "comma",
 
       TokenType::ThinArrow => "->",
 
@@ -83,10 +81,6 @@ impl Display for TokenType {
 
       TokenType::Return => "return",
       TokenType::Defn => "defn",
-
-      TokenType::Integer => "Integer",
-      TokenType::Floating => "Floating",
-      TokenType::Moot => "Moot",
 
       TokenType::Comment => "comment",
 

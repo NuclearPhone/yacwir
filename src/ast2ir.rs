@@ -5,7 +5,9 @@ use std::sync::Arc;
 
 use crate::{
   context::CompilerContext,
-  ir::{BlockIdx, InstrIdx, Instruction, InstructionValue, IrBlock, IrFunction, IrUnit, Type},
+  ir::{
+    BlockIdx, InstrIdx, Instruction, InstructionValue, IrBlock, IrFunction, IrUnit, PrimType, Type,
+  },
   node::{Binary, FunctionDef, Node, NodeData, NodeIdx},
   parser::Ast,
   sema::SemaContext,
@@ -20,10 +22,15 @@ pub fn emit(ctx: &CompilerContext, sema: &mut SemaContext, ast: &Ast) -> IrUnit 
   // the first ast function is guaranteed to be the "main" function
   // thus the first function here is also guaranteed to be the main function
   for funcidx in ast.funcs.iter() {
-    let NodeData::FunctionDef(func) = ast.nodes[*funcidx].data else { panic!()};
+    let NodeData::FunctionDef(ref func) = ast.nodes[*funcidx].data else { panic!()};
 
     funcs.push(IrFunction {
       name: func.name,
+      params: func
+        .params
+        .iter()
+        .map(|p| (p.0, emit_type(sema, p.1)))
+        .collect::<Vec<(Span, Type)>>(),
       block: IrBlockEmitter::emit(ast, func.exec, &mut instructions, &mut blocks).unwrap(),
       ret_type: emit_type(sema, func.return_type),
     });
@@ -37,12 +44,16 @@ pub fn emit(ctx: &CompilerContext, sema: &mut SemaContext, ast: &Ast) -> IrUnit 
 }
 
 fn emit_type(sema: &mut SemaContext, ty: crate::node::Type) -> crate::ir::Type {
-  match ty {
-    crate::node::Type::Undecided => crate::ir::Type::Undecided,
-    crate::node::Type::Integer => crate::ir::Type::Integer,
-    crate::node::Type::Floating => crate::ir::Type::Floating,
-    crate::node::Type::Moot => crate::ir::Type::Moot,
-  }
+  let prim = match ty.prim {
+    crate::node::PrimType::Undecided => crate::ir::PrimType::Undecided,
+    crate::node::PrimType::Integer(bitwidth) => crate::ir::PrimType::Integer(bitwidth),
+    crate::node::PrimType::Unsigned(bitwidth) => crate::ir::PrimType::Unsigned(bitwidth),
+    crate::node::PrimType::Floating(bitwidth) => crate::ir::PrimType::Floating(bitwidth),
+    crate::node::PrimType::Moot => crate::ir::PrimType::Moot,
+    crate::node::PrimType::UserDef => unimplemented!(),
+  };
+
+  crate::ir::Type { prim, ptr: ty.ptr }
 }
 
 // TODO: implement conditional/return instruction/blocks
@@ -69,26 +80,29 @@ impl<'a> IrBlockEmitter<'a> {
     let node = &self.ast.nodes.get(nidx).unwrap();
 
     let (instr_val, instr_ty): (InstructionValue, Type) = match &node.data {
-      NodeData::Floating(val) => (InstructionValue::ConstFloat(*val), Type::Floating),
+      NodeData::Floating(val) => (
+        InstructionValue::ConstFloat(*val),
+        PrimType::ComptimeFloat.into(),
+      ),
 
       NodeData::Add(bin) => {
         let (l, r) = self.emit_binary(*bin)?;
-        (InstructionValue::Add(l, r), Type::Undecided)
+        (InstructionValue::Add(l, r), PrimType::Undecided.into())
       }
 
       NodeData::Subtract(bin) => {
         let (l, r) = self.emit_binary(*bin)?;
-        (InstructionValue::Subtract(l, r), Type::Undecided)
+        (InstructionValue::Subtract(l, r), PrimType::Undecided.into())
       }
 
       NodeData::Multiply(bin) => {
         let (l, r) = self.emit_binary(*bin)?;
-        (InstructionValue::Multiply(l, r), Type::Undecided)
+        (InstructionValue::Multiply(l, r), PrimType::Undecided.into())
       }
 
       NodeData::Divide(bin) => {
         let (l, r) = self.emit_binary(*bin)?;
-        (InstructionValue::Divide(l, r), Type::Undecided)
+        (InstructionValue::Divide(l, r), PrimType::Undecided.into())
       }
 
       NodeData::Block(block) => {
@@ -104,7 +118,7 @@ impl<'a> IrBlockEmitter<'a> {
 
       NodeData::Return(ret) => {
         let expr = self.emit_node(*ret)?;
-        (InstructionValue::Return(expr), Type::Undecided)
+        (InstructionValue::Return(expr), PrimType::Undecided.into())
       }
 
       _ => return Err(format!("unknown node in ast->ir emitter {:?}", node)),
