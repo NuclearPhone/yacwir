@@ -1,11 +1,7 @@
-#![allow(dead_code)]
-// ^ remove this later
-
 use context::CompilerContextBuilder;
 use parser::Parser;
 
 use crate::{
-  emitters::ir2c_emitter,
   optimizers::optimize,
   sema::{type_propogation::propogate, SemaContext},
 };
@@ -74,10 +70,10 @@ fn main() {
   // let ir_out = optimize(&ctx, &sema_ctx, ir_out);
   println!("{}", ir_out.display(&ctx));
 
-  let c_out = ir2c_emitter::emit(&ctx, ir_out);
-  println!("{}\n", c_out);
+  // let c_out = ir2c_emitter::emit(&ctx, ir_out);
+  // println!("{}\n", c_out);
 
-  std::fs::write("./out.c", c_out).unwrap();
+  // std::fs::write("./out.c", c_out).unwrap();
 
   // for func in ir.funcs.iter() {
   //   println!("{}\n", IrFuncDisplay(&ctx, func));
